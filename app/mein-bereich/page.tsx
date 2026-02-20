@@ -516,9 +516,11 @@ export default function MeinBereichPage() {
     setBikeExtras(loadExtras())
   }, [router])
 
+  const DATA_URL = process.env.NEXT_PUBLIC_DATA_URL ?? '/api/strava/dashboard'
+
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch('/api/strava/dashboard', { cache: 'no-store' })
+      const res = await fetch(DATA_URL, { cache: 'no-store' })
       if (!res.ok) throw new Error(`API-Fehler ${res.status}`)
       const json = await res.json()
       if (json.error) throw new Error(json.error)

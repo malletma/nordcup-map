@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { fetchAthlete, fetchStats, fetchActivities } from '@/lib/strava-server'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
+export const revalidate = false
 
 // Key sport types for mapping
 const SPORT_MAP: Record<string, string> = {

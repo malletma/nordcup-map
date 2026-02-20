@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "NEXT_STATIC_EXPORT=true NEXT_PUBLIC_DATA_URL=/nordcup-map/strava-data.json next build",
+    "fetch-strava": "node scripts/fetch-strava.mjs",
     "start": "next start"
   },
   "keywords": [],
