@@ -5,95 +5,175 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { isAuthenticated, logout } from '@/lib/auth'
 
-const t = {
-  bg: '#060d18', bg2: '#0b1424', card: '#0e1929', card2: '#0c1624',
-  border: 'rgba(255,255,255,0.07)', white: '#e8f0fc', text: '#c0cdea',
-  muted: '#6b7a96', accent: '#3b82f6', green: '#10b981', red: '#f43f5e',
-  orange: '#f97316', purple: '#a855f7', yellow: '#eab308', teal: '#14b8a6',
+/* ─── Design tokens ─────────────────────────────────────────────────── */
+const c = {
+  bg: '#04080f', bg2: '#070e1a', card: '#0a1525', card2: '#0d1c30',
+  border: 'rgba(99,179,255,0.08)', white: '#e8f4ff', text: '#b0cce8',
+  muted: '#4a6080', accent: '#38bdf8', accent2: '#6366f1',
+  green: '#34d399', red: '#f87171', orange: '#fb923c',
+  purple: '#a78bfa', yellow: '#fbbf24', teal: '#2dd4bf', pink: '#f472b6',
 }
 
-const SPORT_COLORS: Record<string, string> = {
-  Ride: t.accent, GravelRide: t.purple, VirtualRide: t.yellow,
-  MountainBikeRide: t.green, EBikeRide: t.teal,
-}
-const SPORT_ICONS: Record<string, string> = {
-  Ride: '🚴', GravelRide: '🪨', VirtualRide: '⚡', MountainBikeRide: '🏔️',
-  EBikeRide: '🔋', Run: '🏃', Walk: '🚶',
-}
-
-function durStr(min: number) {
-  const h = Math.floor(min / 60), m = min % 60
-  return h > 0 ? `${h}h ${m > 0 ? m + 'min' : ''}`.trim() : `${m}min`
-}
-function dateFmt(iso: string) {
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
+/* ─── Types ──────────────────────────────────────────────────────────── */
+interface Bike { id: string; name: string; brand: string; model: string; km: number; primary: boolean }
 interface DashboardData {
-  athlete: {
-    name: string; username: string; city: string; country: string
-    weight: number; premium: boolean; memberSince: number
-    followers: number; following: number
-    bikes: { id: string; name: string; brand: string; model: string; km: number; primary: boolean }[]
-  }
-  stats: {
-    ytd: { count: number; km: number; hours: number; elevation: number }
-    recent: { count: number; km: number; hours: number; elevation: number }
-    allTime: { count: number; km: number; hours: number; elevation: number; everests: string }
-    biggestRideKm: number; biggestClimbM: number
-  }
+  athlete: { name: string; username: string; city: string; country: string; weight: number; premium: boolean; memberSince: number; followers: number; following: number; bikes: Bike[] }
+  stats: { ytd: { count: number; km: number; hours: number; elevation: number }; recent: { count: number; km: number; hours: number; elevation: number }; allTime: { count: number; km: number; hours: number; elevation: number; everests: string }; biggestRideKm: number; biggestClimbM: number }
   heatmap: Record<string, number>
   weeklyLoad: { label: string; km: number; rides: number; elevation: number }[]
   sportBreakdown: Record<string, { count: number; km: number }>
   speedBuckets: { label: string; min: number; max: number; count: number }[]
   hrZones: { label: string; max: number; count: number; color: string }[]
   streak: { current: number; longest: number }
-  records: {
-    longestRide: { name: string; km: number; date: string } | null
-    mostElevation: { name: string; elevation: number; date: string } | null
-    fastestRide: { name: string; kmh: number; km: number; date: string } | null
-    mostSuffering: { name: string; score: number; date: string } | null
-  }
+  records: { longestRide: { name: string; km: number; date: string } | null; mostElevation: { name: string; elevation: number; date: string } | null; fastestRide: { name: string; kmh: number; km: number; date: string } | null; mostSuffering: { name: string; score: number; date: string } | null }
   monthlyKm: { month: string; km: number; rides: number }[]
-  recentActivities: {
-    id: number; name: string; sport_type: string; date: string
-    km: number; durationMin: number; elevation: number; avgSpeedKmh: number
-    avgHr: number | null; watts: number | null; sufferScore: number | null
-    kudos: number; prCount: number
-  }[]
+  recentActivities: { id: number; name: string; sport_type: string; date: string; km: number; durationMin: number; elevation: number; avgSpeedKmh: number; avgHr: number | null; watts: number | null; sufferScore: number | null; kudos: number; prCount: number }[]
   fetchedAt: string
   totalActivitiesLoaded: number
 }
 
-function SectionTitle({ label, title }: { label: string; title: string }) {
+const LS_BIKE = 'bike-extras-v2'
+interface BikeExtra { photo?: string; nickname?: string; frameMaterial?: string; frameSize?: string; groupset?: string; drivetrain?: string; brakes?: string; wheelset?: string; tireSize?: string; weightKg?: string; purchaseYear?: string; priceEur?: string; useCase?: string[]; notes?: string }
+const loadExtras = (): Record<string, BikeExtra> => { try { return JSON.parse(localStorage.getItem(LS_BIKE) ?? '{}') } catch { return {} } }
+const saveExtras = (d: Record<string, BikeExtra>) => localStorage.setItem(LS_BIKE, JSON.stringify(d))
+
+/* ─── Hooks ──────────────────────────────────────────────────────────── */
+function useCountUp(target: number, duration = 1800, delay = 0): number {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    let raf: number, start: number | null = null
+    const t = setTimeout(() => {
+      raf = requestAnimationFrame(function step(ts) {
+        if (!start) start = ts
+        const progress = Math.min((ts - start) / duration, 1)
+        const ease = 1 - Math.pow(1 - progress, 3)
+        setVal(Math.round(ease * target))
+        if (progress < 1) raf = requestAnimationFrame(step)
+      })
+    }, delay)
+    return () => { clearTimeout(t); cancelAnimationFrame(raf) }
+  }, [target, duration, delay])
+  return val
+}
+
+function useInView(ref: React.RefObject<Element | null>): boolean {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current; if (!el) return
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.15 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [ref])
+  return visible
+}
+
+/* ─── Global CSS (injected once) ─────────────────────────────────────── */
+const GLOBAL_CSS = `
+@keyframes float1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-60px) scale(1.1)} 66%{transform:translate(-30px,40px) scale(0.95)} }
+@keyframes float2 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-50px,30px) scale(1.05)} 66%{transform:translate(60px,-40px) scale(1.1)} }
+@keyframes float3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-50px)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes spinReverse { to{transform:rotate(-360deg)} }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.05)} }
+@keyframes pulseGlow { 0%,100%{box-shadow:0 0 6px #38bdf8,0 0 12px #38bdf880} 50%{box-shadow:0 0 14px #38bdf8,0 0 28px #38bdf8,0 0 40px #38bdf840} }
+@keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideLeft { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+@keyframes barFill { from{width:0} }
+@keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+@keyframes countGlow { 0%,100%{text-shadow:none} 50%{text-shadow:0 0 20px #38bdf8,0 0 40px #38bdf880} }
+@keyframes borderSpin { to{--angle:360deg} }
+@keyframes dash { from{stroke-dashoffset:400} }
+@keyframes heatIn { from{opacity:0;transform:scale(0)} to{opacity:1;transform:scale(1)} }
+@keyframes fireflicker { 0%,100%{transform:scaleY(1) scaleX(1)} 25%{transform:scaleY(1.1) scaleX(.95)} 75%{transform:scaleY(.95) scaleX(1.05)} }
+@keyframes typing { from{width:0} to{width:100%} }
+@keyframes blink { 50%{opacity:0} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes flipIn { from{transform:rotateY(-90deg);opacity:0} to{transform:rotateY(0);opacity:1} }
+
+.card-flip-inner { transition: transform .7s cubic-bezier(.4,0,.2,1); transform-style: preserve-3d; }
+.card-flip:hover .card-flip-inner { transform: rotateY(180deg); }
+.card-face { -webkit-backface-visibility:hidden; backface-visibility:hidden; position:absolute; inset:0; }
+.card-back { transform: rotateY(180deg); }
+
+.bar-animated { animation: barFill .9s cubic-bezier(.4,0,.2,1) both; }
+.slide-up { animation: slideUp .6s cubic-bezier(.4,0,.2,1) both; }
+.fade-in { animation: fadeIn .5s ease both; }
+
+* { box-sizing: border-box; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #04080f; } ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+`
+
+/* ─── Helpers ─────────────────────────────────────────────────────────── */
+const SPORT_COLORS: Record<string, string> = { Ride: c.accent, GravelRide: c.purple, VirtualRide: c.yellow, MountainBikeRide: c.green, EBikeRide: c.teal }
+const SPORT_ICON: Record<string, string> = { Ride: '🚴', GravelRide: '🪨', VirtualRide: '⚡', MountainBikeRide: '🏔️', EBikeRide: '🔋', Run: '🏃', Walk: '🚶' }
+const BIKE_COLORS = [c.accent, c.purple, c.yellow, c.green, c.teal, c.pink]
+
+function fmt(n: number, dec = 0) { return n.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec }) }
+function durStr(min: number) { const h = Math.floor(min / 60), m = min % 60; return h > 0 ? `${h}h${m > 0 ? ' ' + m + 'min' : ''}` : `${m}min` }
+function dateDE(iso: string) { return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }) }
+
+/* ─── Components ─────────────────────────────────────────────────────── */
+
+function GlowDot({ color = c.green }: { color?: string }) {
+  return <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}, 0 0 12px ${color}80`, animation: 'pulse 2s ease infinite' }} />
+}
+
+function SectionLabel({ tag, title, sub }: { tag: string; title: string; sub?: string }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: t.accent, marginBottom: 5 }}>{label}</div>
-      <h2 style={{ margin: 0, fontSize: 'clamp(1.1rem,2.2vw,1.5rem)', fontWeight: 800, color: t.white }}>{title}</h2>
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: c.accent, marginBottom: 6 }}>{tag}</div>
+      <h2 style={{ margin: 0, fontSize: 'clamp(1.2rem,2.5vw,1.7rem)', fontWeight: 900, color: c.white, lineHeight: 1.2 }}>{title}</h2>
+      {sub && <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{sub}</div>}
     </div>
   )
 }
 
-function StatPill({ value, unit, label, color = t.accent, sub }: {
-  value: string | number; unit?: string; label: string; color?: string; sub?: string
-}) {
+function AnimNum({ value, unit, dec = 0, color = c.accent, size = '2.4rem', delay = 0 }: { value: number; unit?: string; dec?: number; color?: string; size?: string; delay?: number }) {
+  const v = useCountUp(value, 1600, delay)
   return (
-    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at top right,${color}18,transparent 65%)` }} />
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: t.muted, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 900, color: t.white, letterSpacing: '-0.02em', lineHeight: 1 }}>
-        {value}{unit && <span style={{ fontSize: '0.45em', fontWeight: 600, color, marginLeft: 4 }}>{unit}</span>}
-      </div>
-      {sub && <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>{sub}</div>}
+    <span style={{ fontSize: size, fontWeight: 900, color: c.white, letterSpacing: '-0.03em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+      {dec > 0 ? (v / Math.pow(10, dec)).toFixed(dec) : fmt(v)}
+      {unit && <span style={{ fontSize: '0.4em', color, marginLeft: 3, fontWeight: 700 }}>{unit}</span>}
+    </span>
+  )
+}
+
+function GlassCard({ children, style, glow }: { children: React.ReactNode; style?: React.CSSProperties; glow?: string }) {
+  return (
+    <div style={{
+      background: `linear-gradient(135deg,rgba(10,21,37,0.95),rgba(13,28,48,0.9))`,
+      border: `1px solid ${glow ? glow + '40' : c.border}`,
+      borderRadius: 18, backdropFilter: 'blur(20px)',
+      boxShadow: glow ? `0 0 0 1px ${glow}20, 0 8px 32px rgba(0,0,0,.4), inset 0 1px 0 ${glow}20` : '0 8px 32px rgba(0,0,0,.3)',
+      position: 'relative', overflow: 'hidden',
+      ...style,
+    }}>
+      {glow && <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at top left, ${glow}08, transparent 60%)`, pointerEvents: 'none' }} />}
+      {children}
     </div>
   )
 }
 
-function ActivityHeatmap({ heatmap }: { heatmap: Record<string, number> }) {
+function AnimBar({ pct, color, height = 8, delay = 0 }: { pct: number; color: string; height?: number; delay?: number }) {
+  const [go, setGo] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setGo(true), delay); return () => clearTimeout(t) }, [delay])
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 999, height, overflow: 'hidden' }}>
+      <div style={{
+        height: '100%', width: go ? `${pct}%` : '0%', borderRadius: 999,
+        background: `linear-gradient(90deg,${color},${color}cc)`,
+        transition: 'width 1.2s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: `0 0 8px ${color}60`,
+      }} />
+    </div>
+  )
+}
+
+/* ─── Heatmap ──────────────────────────────────────────────────────── */
+function HeatmapGrid({ heatmap }: { heatmap: Record<string, number> }) {
   const maxKm = Math.max(...Object.values(heatmap), 1)
   const today = new Date()
-  const startDay = new Date(today)
-  startDay.setDate(today.getDate() - 364)
+  const startDay = new Date(today); startDay.setDate(today.getDate() - 364)
   while (startDay.getDay() !== 1) startDay.setDate(startDay.getDate() - 1)
   const weeks: { date: string; km: number }[][] = []
   let week: { date: string; km: number }[] = []
@@ -105,172 +185,96 @@ function ActivityHeatmap({ heatmap }: { heatmap: Record<string, number> }) {
     cur.setDate(cur.getDate() + 1)
   }
   if (week.length) weeks.push(week)
-  function cellColor(km: number) {
-    if (km < 0) return 'rgba(255,255,255,0.03)'
-    if (km === 0) return 'rgba(255,255,255,0.04)'
-    const intensity = Math.min(km / maxKm, 1)
-    if (intensity < 0.25) return 'rgba(59,130,246,0.25)'
-    if (intensity < 0.5) return 'rgba(59,130,246,0.5)'
-    if (intensity < 0.75) return 'rgba(59,130,246,0.75)'
-    return '#3b82f6'
-  }
-  const monthLabels: { label: string; col: number }[] = []
-  weeks.forEach((w, i) => {
-    const d = new Date(w[0].date)
-    if (d.getDate() <= 7) monthLabels.push({ label: d.toLocaleDateString('de-DE', { month: 'short' }), col: i })
-  })
-  const DAY = ['Mo', '', 'Mi', '', 'Fr', '', 'So']
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-        <div style={{ width: 20 }} />
-        {weeks.map((_, i) => {
-          const ml = monthLabels.find(m => m.col === i)
-          return <div key={i} style={{ width: 12, fontSize: 9, color: t.muted, textAlign: 'center', flexShrink: 0 }}>{ml?.label ?? ''}</div>
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginRight: 4 }}>
-          {DAY.map((l, i) => <div key={i} style={{ height: 12, fontSize: 9, color: t.muted, lineHeight: '12px', width: 16 }}>{l}</div>)}
-        </div>
-        {weeks.map((wk, wi) => (
-          <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {wk.map((day, di) => (
-              <div key={di} title={day.km >= 0 ? `${day.date}: ${day.km.toFixed(1)} km` : day.date}
-                style={{ width: 12, height: 12, borderRadius: 2, background: cellColor(day.km) }} />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-        <span style={{ fontSize: 10, color: t.muted }}>Weniger</span>
-        {[0, 0.25, 0.5, 0.75, 1].map(v => (
-          <div key={v} style={{ width: 10, height: 10, borderRadius: 2, background: cellColor(v * maxKm || (v > 0 ? 1 : 0)) }} />
-        ))}
-        <span style={{ fontSize: 10, color: t.muted }}>Mehr</span>
-      </div>
-    </div>
-  )
-}
 
-function WeeklyLoadChart({ data }: { data: { label: string; km: number; rides: number; elevation: number }[] }) {
-  const maxKm = Math.max(...data.map(d => d.km), 1)
-  const nonZero = data.filter(d => d.km > 0)
-  const avgKm = nonZero.length ? Math.round(nonZero.reduce((s, d) => s + d.km, 0) / nonZero.length) : 0
-  const cur = data[data.length - 1]
+  function cellColor(km: number): string {
+    if (km < 0) return 'rgba(255,255,255,0.02)'
+    if (km === 0) return 'rgba(255,255,255,0.04)'
+    const i = km / maxKm
+    if (i < 0.2) return 'rgba(56,189,248,0.2)'
+    if (i < 0.4) return 'rgba(56,189,248,0.4)'
+    if (i < 0.6) return 'rgba(56,189,248,0.65)'
+    if (i < 0.8) return 'rgba(56,189,248,0.85)'
+    return '#38bdf8'
+  }
+
+  const monthLabels: { label: string; col: number }[] = []
+  weeks.forEach((w, i) => { const d = new Date(w[0].date); if (d.getDate() <= 7) monthLabels.push({ label: d.toLocaleDateString('de-DE', { month: 'short' }), col: i }) })
+  const DAYS = ['Mo', '', 'Mi', '', 'Fr', '', 'So']
+
+  const total365 = Object.values(heatmap).filter(v => v > 0).length
+  const total365km = Math.round(Object.values(heatmap).reduce((s, v) => s + Math.max(v, 0), 0))
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100, marginBottom: 6 }}>
-        {data.map((w, i) => {
-          const isCurrent = i === data.length - 1
-          const pct = (w.km / maxKm) * 100
-          return (
-            <div key={i} title={`${w.label}: ${w.km} km, ${w.rides} Fahrten`}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              {w.km > 0 && <div style={{ fontSize: 9, color: isCurrent ? t.accent : t.muted, fontWeight: isCurrent ? 700 : 400 }}>{w.km}</div>}
-              <div style={{
-                width: '100%', height: `${Math.max(pct, w.km > 0 ? 3 : 0)}%`, minHeight: w.km > 0 ? 3 : 0,
-                background: isCurrent ? `linear-gradient(180deg,${t.accent},#1d4ed8)` : w.km > avgKm ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.25)',
-                borderRadius: '4px 4px 2px 2px',
-              }} />
+      <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: c.accent }}>📅 {total365} aktive Tage</div>
+        <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: c.green }}>🚴 {fmt(total365km)} km in 365 Tagen</div>
+        <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: c.yellow }}>🔥 Ø {Math.round(total365km / Math.max(total365, 1))} km/Aktivität</div>
+      </div>
+      <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 4, paddingLeft: 22 }}>
+          {weeks.map((_, i) => { const ml = monthLabels.find(m => m.col === i); return <div key={i} style={{ width: 11, fontSize: 8, color: c.muted, flexShrink: 0, textAlign: 'center' }}>{ml?.label ?? ''}</div> })}
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 4 }}>
+            {DAYS.map((l, i) => <div key={i} style={{ height: 11, fontSize: 8, color: c.muted, lineHeight: '11px', width: 16 }}>{l}</div>)}
+          </div>
+          {weeks.map((wk, wi) => (
+            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {wk.map((day, di) => (
+                <div key={di} title={day.km >= 0 ? `${day.date}: ${Math.round(day.km)} km` : day.date}
+                  style={{ width: 11, height: 11, borderRadius: 2, background: cellColor(day.km), cursor: day.km > 0 ? 'pointer' : 'default', transition: 'transform .1s', flexShrink: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.5)')}
+                  onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                />
+              ))}
             </div>
-          )
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {data.map((w, i) => (
-          <div key={i} style={{ flex: 1, fontSize: 8, color: i === data.length - 1 ? t.accent : t.muted, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            {i % 2 === 0 || i === data.length - 1 ? w.label : ''}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 11, color: t.muted }}>
-        <span>Ø {avgKm} km/Woche</span>
-        <span>Diese Woche: <strong style={{ color: t.white }}>{cur.km} km</strong></span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, paddingLeft: 22 }}>
+          <span style={{ fontSize: 9, color: c.muted }}>Weniger</span>
+          {[0, 0.2, 0.5, 0.8, 1].map(v => <div key={v} style={{ width: 10, height: 10, borderRadius: 2, background: cellColor(v * maxKm || (v > 0 ? 0.01 : 0)) }} />)}
+          <span style={{ fontSize: 9, color: c.muted }}>Mehr</span>
+        </div>
       </div>
     </div>
   )
 }
 
-function SpeedDistribution({ buckets }: { buckets: { label: string; count: number }[] }) {
-  const max = Math.max(...buckets.map(b => b.count), 1)
-  const total = buckets.reduce((s, b) => s + b.count, 0)
-  const colors = ['#6b7a96', '#14b8a6', '#3b82f6', '#a855f7', '#f97316', '#f43f5e']
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {buckets.map((b, i) => {
-        const pct = total > 0 ? Math.round((b.count / total) * 100) : 0
-        return (
-          <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 60, fontSize: 11, color: t.muted, textAlign: 'right', flexShrink: 0 }}>{b.label} km/h</div>
-            <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 4, height: 20, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${(b.count / max) * 100}%`, background: colors[i] ?? t.accent, borderRadius: 4, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
-                {pct > 5 && <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{pct}%</span>}
-              </div>
-            </div>
-            <div style={{ width: 28, fontSize: 11, color: t.muted, textAlign: 'right', flexShrink: 0 }}>{b.count}</div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function HrZones({ zones }: { zones: { label: string; count: number; color: string }[] }) {
-  const total = zones.reduce((s, z) => s + z.count, 0)
-  if (total === 0) return <div style={{ color: t.muted, fontSize: 13 }}>Keine Herzfrequenzdaten vorhanden.</div>
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ height: 20, borderRadius: 10, overflow: 'hidden', display: 'flex', gap: 1 }}>
-        {zones.map(z => z.count > 0 ? <div key={z.label} title={`${z.label}: ${z.count}`} style={{ flex: z.count, background: z.color }} /> : null)}
-      </div>
-      {zones.map(z => {
-        const pct = Math.round((z.count / total) * 100)
-        return (
-          <div key={z.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: z.color, flexShrink: 0 }} />
-            <div style={{ flex: 1, fontSize: 12, color: t.text }}>{z.label}</div>
-            <div style={{ fontSize: 12, color: t.muted }}>{z.count}</div>
-            <div style={{ width: 34, fontSize: 12, fontWeight: 700, color: z.count > 0 ? z.color : t.muted, textAlign: 'right' }}>{pct}%</div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function SportBreakdown({ data }: { data: Record<string, { count: number; km: number }> }) {
-  const entries = Object.entries(data).sort((a, b) => b[1].count - a[1].count)
-  const totalCount = entries.reduce((s, [, v]) => s + v.count, 0)
-  const svgColors = [t.accent, t.purple, t.yellow, t.green, t.teal, t.orange, t.red]
-  const size = 100, cx = 50, cy = 50, r = 38, stroke = 14
-  const circ = 2 * Math.PI * r
-  let off = 0
-  const slices = entries.map(([label, v], i) => {
-    const pct = v.count / totalCount
-    const dash = pct * circ
-    const s = { label, pct, dash, gap: circ - dash, offset: off, color: svgColors[i % svgColors.length] }
-    off += dash
-    return s
+/* ─── Day of week radar ─────────────────────────────────────────────── */
+function DayRadar({ heatmap }: { heatmap: Record<string, number> }) {
+  const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  const stats = Array(7).fill(0).map(() => ({ count: 0, km: 0 }))
+  Object.entries(heatmap).forEach(([date, km]) => {
+    if (km > 0) { let d = new Date(date).getDay(); d = d === 0 ? 6 : d - 1; stats[d].count++; stats[d].km += km }
   })
+  const maxKm = Math.max(...stats.map(s => s.km), 1)
+  const cx = 80, cy = 80, r = 60
+  const points = stats.map((s, i) => {
+    const angle = (i / 7) * Math.PI * 2 - Math.PI / 2
+    const pct = s.km / maxKm
+    return { x: cx + r * pct * Math.cos(angle), y: cy + r * pct * Math.sin(angle), lx: cx + (r + 16) * Math.cos(angle), ly: cy + (r + 16) * Math.sin(angle), label: days[i], km: s.km, count: s.count }
+  })
+  const polyStr = points.map(p => `${p.x},${p.y}`).join(' ')
+  const gridPoints = (frac: number) => stats.map((_, i) => {
+    const a = (i / 7) * Math.PI * 2 - Math.PI / 2
+    return `${cx + r * frac * Math.cos(a)},${cy + r * frac * Math.sin(a)}`
+  }).join(' ')
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
-        {slices.map(s => (
-          <circle key={s.label} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={stroke}
-            strokeDasharray={`${s.dash} ${s.gap}`} strokeDashoffset={-s.offset + circ * 0.25}
-            style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }} />
-        ))}
-        <text x={cx} y={cy - 5} textAnchor="middle" fill={t.white} fontSize="14" fontWeight="800">{totalCount}</text>
-        <text x={cx} y={cy + 9} textAnchor="middle" fill={t.muted} fontSize="8">Aktivitäten</text>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <svg width={160} height={160} viewBox="0 0 160 160">
+        {[0.25, 0.5, 0.75, 1].map(f => <polygon key={f} points={gridPoints(f)} fill="none" stroke={`rgba(56,189,248,${f * 0.12})`} strokeWidth={1} />)}
+        {stats.map((_, i) => { const a = (i / 7) * Math.PI * 2 - Math.PI / 2; return <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="rgba(56,189,248,0.08)" strokeWidth={1} /> })}
+        <polygon points={polyStr} fill="rgba(56,189,248,0.18)" stroke={c.accent} strokeWidth={2} strokeLinejoin="round" />
+        {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3} fill={c.accent} />)}
+        {points.map((p, i) => <text key={i} x={p.lx} y={p.ly} textAnchor="middle" dominantBaseline="middle" fill={c.muted} fontSize={9} fontWeight={600}>{p.label}</text>)}
       </svg>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {slices.slice(0, 6).map(s => (
-          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-            <div style={{ flex: 1, fontSize: 12, color: t.text }}>{s.label}</div>
-            <div style={{ fontSize: 11, color: t.muted }}>{Math.round(s.pct * 100)}%</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, width: '100%' }}>
+        {stats.map((s, i) => (
+          <div key={i} style={{ background: s.km === Math.max(...stats.map(x => x.km)) ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '5px 8px', textAlign: 'center', border: `1px solid ${s.km === Math.max(...stats.map(x => x.km)) ? c.accent + '40' : c.border}` }}>
+            <div style={{ fontSize: 9, color: c.muted }}>{days[i]}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: c.white }}>{Math.round(s.km)} km</div>
+            <div style={{ fontSize: 9, color: c.muted }}>{s.count}×</div>
           </div>
         ))}
       </div>
@@ -278,208 +282,190 @@ function SportBreakdown({ data }: { data: Record<string, { count: number; km: nu
   )
 }
 
-/* ───────────── Bike Extras ───────────── */
-interface BikeExtra {
-  photo?: string
-  nickname?: string
-  frameMaterial?: string
-  frameSize?: string
-  groupset?: string
-  drivetrain?: string
-  brakes?: string
-  wheelset?: string
-  tireSize?: string
-  weightKg?: string
-  purchaseYear?: string
-  priceEur?: string
-  useCase?: string[]
-  notes?: string
+/* ─── Circular goal ring ──────────────────────────────────────────── */
+function GoalRing({ pct, km, goal }: { pct: number; km: number; goal: number }) {
+  const [p, setP] = useState(0)
+  useEffect(() => { const t = setTimeout(() => setP(pct), 300); return () => clearTimeout(t) }, [pct])
+  const r = 70, circ = 2 * Math.PI * r
+  const dash = (p / 100) * circ
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'relative', width: 180, height: 180 }}>
+        <svg width={180} height={180} viewBox="0 0 180 180" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={90} cy={90} r={r} fill="none" stroke="rgba(56,189,248,0.07)" strokeWidth={14} />
+          <circle cx={90} cy={90} r={r} fill="none" stroke="url(#ringGrad)" strokeWidth={14}
+            strokeLinecap="round" strokeDasharray={`${circ}`}
+            strokeDashoffset={circ - dash} style={{ transition: 'stroke-dashoffset 1.8s cubic-bezier(0.4,0,0.2,1)' }} />
+          {/* Tick marks every 10% */}
+          {Array.from({ length: 10 }).map((_, i) => {
+            const a = (i / 10) * Math.PI * 2; const x1 = 90 + (r - 8) * Math.cos(a); const y1 = 90 + (r - 8) * Math.sin(a); const x2 = 90 + (r + 2) * Math.cos(a); const y2 = 90 + (r + 2) * Math.sin(a)
+            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.08)" strokeWidth={1.5} />
+          })}
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={c.accent} />
+              <stop offset="100%" stopColor={c.accent2} />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontSize: 36, fontWeight: 900, color: c.white, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{Math.round(p)}%</div>
+          <div style={{ fontSize: 11, color: c.muted, marginTop: 3 }}>von {fmt(goal)} km</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: c.accent, marginTop: 4 }}>{fmt(km)} km</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[25, 50, 75, 100].map(milestone => (
+          <div key={milestone} style={{ width: 36, height: 36, borderRadius: '50%', background: pct >= milestone ? `radial-gradient(circle,${c.accent}40,${c.accent}10)` : 'rgba(255,255,255,0.04)', border: `1px solid ${pct >= milestone ? c.accent + '80' : c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: pct >= milestone ? c.accent : c.muted }}>
+            {milestone}%
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
-const USE_CASES = ['Road', 'Training', 'Rennen', 'Gravel', 'Commute', 'Indoor']
-const FRAME_OPTIONS = ['Carbon', 'Aluminium', 'Stahl', 'Titan', 'Sonstiges']
-const DRIVETRAIN_OPTIONS = ['1x', '2x']
-const BRAKE_OPTIONS = ['Scheibe Hydraulisch', 'Scheibe Mechanisch', 'Felge']
-
-const LS_KEY = 'bike-extras'
-function loadExtras(): Record<string, BikeExtra> {
-  if (typeof window === 'undefined') return {}
-  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') } catch { return {} }
-}
-function saveExtras(data: Record<string, BikeExtra>) {
-  localStorage.setItem(LS_KEY, JSON.stringify(data))
-}
-
-function BikeModal({ bikeId, bikeName, bikeKm, bikeColor, initialData, onSave, onClose }: {
-  bikeId: string; bikeName: string; bikeKm: number; bikeColor: string
-  initialData: BikeExtra; onSave: (data: BikeExtra) => void; onClose: () => void
-}) {
-  const [draft, setDraft] = useState<BikeExtra>(initialData)
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  function set<K extends keyof BikeExtra>(key: K, value: BikeExtra[K]) {
-    setDraft(d => ({ ...d, [key]: value }))
-  }
-  function toggleUse(u: string) {
-    const cur = draft.useCase ?? []
-    set('useCase', cur.includes(u) ? cur.filter(x => x !== u) : [...cur, u])
-  }
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => set('photo', ev.target?.result as string)
-    reader.readAsDataURL(file)
-  }
-
-  const inp = (style?: React.CSSProperties): React.CSSProperties => ({
-    background: t.card2, border: `1px solid ${t.border}`, borderRadius: 8,
-    color: t.white, padding: '9px 12px', fontSize: 13, width: '100%',
-    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', ...style,
-  })
-  const lbl = (): React.CSSProperties => ({
-    fontSize: 11, fontWeight: 700, letterSpacing: '1px',
-    textTransform: 'uppercase', color: t.muted, display: 'block', marginBottom: 6,
-  })
-  const chip = (active: boolean, color = t.accent): React.CSSProperties => ({
-    padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-    cursor: 'pointer', border: `1px solid ${active ? color : t.border}`,
-    background: active ? `${color}20` : 'transparent', color: active ? color : t.muted,
-  })
+/* ─── Bike Flip Card ─────────────────────────────────────────────────── */
+function BikeCard({ bike, extra, color, onEdit }: { bike: Bike; extra: BikeExtra; color: string; onEdit: () => void }) {
+  const displayName = extra.nickname || bike.name || `${bike.brand} ${bike.model}`
+  const kmPct = Math.min((bike.km / 20000) * 100, 100)
+  const health = bike.km > 15000 ? { icon: '⚠️', text: 'Wartung!', col: c.red } : bike.km > 8000 ? { icon: '🔄', text: 'Bald fällig', col: c.orange } : { icon: '✅', text: 'Topzustand', col: c.green }
+  const specs = [
+    extra.groupset && { icon: '⚙️', v: extra.groupset },
+    extra.frameMaterial && { icon: '🏗', v: extra.frameMaterial + (extra.frameSize ? ' ' + extra.frameSize : '') },
+    extra.wheelset && { icon: '🔵', v: extra.wheelset },
+    extra.weightKg && { icon: '⚖️', v: extra.weightKg + ' kg' },
+    extra.brakes && { icon: '🛑', v: extra.brakes },
+    extra.tireSize && { icon: '🔲', v: extra.tireSize },
+  ].filter(Boolean) as { icon: string; v: string }[]
 
   return (
-    <div onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 18, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <div style={{ padding: '20px 24px 0', borderBottom: `1px solid ${t.border}`, paddingBottom: 16, position: 'sticky', top: 0, background: t.bg2, zIndex: 1, borderRadius: '18px 18px 0 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: bikeColor, marginBottom: 4 }}>Bike konfigurieren</div>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: t.white }}>{bikeName}</h3>
-              <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>{bikeKm.toLocaleString('de-DE')} km gefahren</div>
+    <div className="card-flip" style={{ perspective: 1000, height: 360, cursor: 'pointer', position: 'relative' }}>
+      <div className="card-flip-inner" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        {/* FRONT */}
+        <div className="card-face" style={{ borderRadius: 18, overflow: 'hidden', background: c.card, border: `1px solid ${color}30` }}>
+          <div style={{ height: 4, background: `linear-gradient(90deg,${color},${color}66)` }} />
+          {extra.photo
+            ? <img src={extra.photo} alt={displayName} style={{ width: '100%', height: 160, objectFit: 'cover' }} />
+            : <div style={{ height: 160, background: `radial-gradient(ellipse at center,${color}15,transparent 70%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, cursor: 'pointer' }} onClick={onEdit}>
+              <div style={{ fontSize: 48 }}>🚴</div>
+              <div style={{ fontSize: 11, color: c.muted }}>Klicken für Foto</div>
+            </div>}
+          <div style={{ padding: '14px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 15, color: c.white }}>{displayName}</div>
+                <div style={{ fontSize: 11, color: c.muted }}>{bike.brand} {bike.model}</div>
+              </div>
+              {bike.primary && <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: `${color}20`, color, border: `1px solid ${color}40`, flexShrink: 0 }}>PRIMÄR</span>}
             </div>
-            <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${t.border}`, color: t.muted, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>✕</button>
+            {(extra.useCase ?? []).length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                {(extra.useCase ?? []).map(u => <span key={u} style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: `${c.green}15`, color: c.green }}>{u}</span>)}
+              </div>
+            )}
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: c.muted }}>Laufleistung</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: c.white }}>{fmt(bike.km)} km</span>
+              </div>
+              <AnimBar pct={kmPct} color={health.col} height={6} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: health.col }}>{health.icon} {health.text}</span>
+              <span style={{ fontSize: 10, color: c.muted, fontStyle: 'italic' }}>Hover für Details →</span>
+            </div>
           </div>
         </div>
+        {/* BACK */}
+        <div className="card-face card-back" style={{ borderRadius: 18, overflow: 'hidden', background: `linear-gradient(135deg,${c.card2},${c.card})`, border: `1px solid ${color}50` }}>
+          <div style={{ height: 4, background: `linear-gradient(90deg,${color},${c.accent2})` }} />
+          <div style={{ padding: '20px 18px', height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 900, color: c.white, marginBottom: 4 }}>🔧 Tech-Specs</div>
+            {specs.length > 0
+              ? specs.map(s => (
+                <div key={s.icon} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '7px 10px' }}>
+                  <span style={{ fontSize: 14 }}>{s.icon}</span>
+                  <span style={{ fontSize: 12, color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.v}</span>
+                </div>
+              ))
+              : <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: c.muted }}>
+                <div style={{ fontSize: 28 }}>📋</div>
+                <div style={{ fontSize: 12, textAlign: 'center' }}>Noch keine Specs eingetragen</div>
+              </div>}
+            {extra.notes && <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: c.text, lineHeight: 1.5, marginTop: 'auto' }}>📝 {extra.notes}</div>}
+            <button onClick={onEdit} style={{ marginTop: 'auto', padding: '10px', background: `linear-gradient(90deg,${color}30,${color}10)`, border: `1px solid ${color}50`, color, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800, fontFamily: 'inherit' }}>
+              ✏️ {specs.length > 0 ? 'Bearbeiten' : 'Ausfüllen'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-          {/* Photo upload */}
+/* ─── Bike Modal ─────────────────────────────────────────────────────── */
+function BikeModal({ bikeId, bikeName, bikeKm, bColor, init, onSave, onClose }: { bikeId: string; bikeName: string; bikeKm: number; bColor: string; init: BikeExtra; onSave: (d: BikeExtra) => void; onClose: () => void }) {
+  const [draft, setDraft] = useState<BikeExtra>(init)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const set = <K extends keyof BikeExtra>(k: K, v: BikeExtra[K]) => setDraft(d => ({ ...d, [k]: v }))
+  const toggleUse = (u: string) => { const cur = draft.useCase ?? []; set('useCase', cur.includes(u) ? cur.filter(x => x !== u) : [...cur, u]) }
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => set('photo', ev.target?.result as string); r.readAsDataURL(f) }
+
+  const I = (s?: React.CSSProperties): React.CSSProperties => ({ background: c.card2, border: `1px solid ${c.border}`, borderRadius: 8, color: c.white, padding: '9px 12px', fontSize: 13, width: '100%', outline: 'none', fontFamily: 'inherit', ...s })
+  const L = (): React.CSSProperties => ({ fontSize: 10, fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', color: c.muted, display: 'block', marginBottom: 6 })
+  const CH = (on: boolean, col = bColor): React.CSSProperties => ({ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1px solid ${on ? col : c.border}`, background: on ? `${col}20` : 'transparent', color: on ? col : c.muted, transition: 'all .2s' })
+
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: c.bg2, border: `1px solid ${bColor}30`, borderRadius: 20, width: '100%', maxWidth: 620, maxHeight: '90vh', overflowY: 'auto', animation: 'slideUp .3s ease' }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${c.border}`, position: 'sticky', top: 0, background: c.bg2, borderRadius: '20px 20px 0 0', zIndex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: bColor, marginBottom: 4 }}>Bike konfigurieren</div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: c.white }}>{bikeName}</h3>
+              <div style={{ fontSize: 12, color: c.muted }}>{fmt(bikeKm)} km</div>
+            </div>
+            <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${c.border}`, color: c.muted, borderRadius: 10, padding: '6px 14px', cursor: 'pointer', fontSize: 18, fontFamily: 'inherit' }}>×</button>
+          </div>
+        </div>
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Photo */}
           <div>
-            <label style={lbl()}>📷 Foto</label>
-            <div onClick={() => fileRef.current?.click()}
-              style={{ border: `2px dashed ${draft.photo ? bikeColor : t.border}`, borderRadius: 12, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative', background: t.card }}>
-              {draft.photo
-                ? <img src={draft.photo} alt="Bike" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
-                : <div style={{ textAlign: 'center', color: t.muted }}>
-                    <div style={{ fontSize: 30, marginBottom: 8 }}>📸</div>
-                    <div style={{ fontSize: 13 }}>Foto hochladen</div>
-                    <div style={{ fontSize: 11, marginTop: 4 }}>JPG, PNG, WEBP</div>
-                  </div>}
-              {draft.photo && (
-                <button onClick={e => { e.stopPropagation(); set('photo', undefined) }}
-                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>Entfernen</button>
-              )}
+            <label style={L()}>📷 Foto</label>
+            <div onClick={() => fileRef.current?.click()} style={{ border: `2px dashed ${draft.photo ? bColor : c.border}`, borderRadius: 14, minHeight: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative', background: c.card, transition: 'border-color .2s' }}>
+              {draft.photo ? <img src={draft.photo} alt="" style={{ width: '100%', height: 200, objectFit: 'cover' }} /> : <div style={{ textAlign: 'center', color: c.muted }}><div style={{ fontSize: 28, marginBottom: 6 }}>📸</div><div style={{ fontSize: 13 }}>Foto hochladen</div></div>}
+              {draft.photo && <button onClick={e => { e.stopPropagation(); set('photo', undefined) }} style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,.6)', border: 'none', color: '#fff', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}>✕</button>}
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
           </div>
-
-          {/* Nickname */}
-          <div>
-            <label style={lbl()}>🏷 Spitzname</label>
-            <input style={inp()} placeholder={bikeName} value={draft.nickname ?? ''} onChange={e => set('nickname', e.target.value)} />
+          <div><label style={L()}>🏷 Spitzname</label><input style={I()} placeholder={bikeName} value={draft.nickname ?? ''} onChange={e => set('nickname', e.target.value)} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={L()}>🏗 Rahmen</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{['Carbon', 'Alu', 'Stahl', 'Titan'].map(o => <button key={o} style={CH(draft.frameMaterial === o)} onClick={() => set('frameMaterial', draft.frameMaterial === o ? undefined : o)}>{o}</button>)}</div>
+            </div>
+            <div><label style={L()}>📐 Größe</label><input style={I()} placeholder="z.B. 54cm" value={draft.frameSize ?? ''} onChange={e => set('frameSize', e.target.value)} /></div>
           </div>
-
-          {/* Row: Frame material + size */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={lbl()}>🏗 Rahmenmaterial</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {FRAME_OPTIONS.map(o => (
-                  <button key={o} style={chip(draft.frameMaterial === o, t.accent)} onClick={() => set('frameMaterial', draft.frameMaterial === o ? undefined : o)}>{o}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={lbl()}>📐 Rahmengröße</label>
-              <input style={inp()} placeholder="z.B. 54cm oder M" value={draft.frameSize ?? ''} onChange={e => set('frameSize', e.target.value)} />
-            </div>
+          <div><label style={L()}>⚙️ Schaltgruppe</label><input style={I()} placeholder="z.B. Shimano Dura-Ace 12-fach" value={draft.groupset ?? ''} onChange={e => set('groupset', e.target.value)} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label style={L()}>🔧 Antrieb</label><div style={{ display: 'flex', gap: 5 }}>{['1x', '2x'].map(o => <button key={o} style={CH(draft.drivetrain === o, c.purple)} onClick={() => set('drivetrain', draft.drivetrain === o ? undefined : o)}>{o}</button>)}</div></div>
+            <div><label style={L()}>🛑 Bremsen</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{['Scheibe Hyd.', 'Scheibe Mech.', 'Felge'].map(o => <button key={o} style={CH(draft.brakes === o, c.orange)} onClick={() => set('brakes', draft.brakes === o ? undefined : o)}>{o}</button>)}</div></div>
           </div>
-
-          {/* Groupset */}
-          <div>
-            <label style={lbl()}>⚙️ Schaltgruppe</label>
-            <input style={inp()} placeholder="z.B. Shimano Dura-Ace 12-fach" value={draft.groupset ?? ''} onChange={e => set('groupset', e.target.value)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label style={L()}>🔵 Laufräder</label><input style={I()} placeholder="z.B. Zipp 303" value={draft.wheelset ?? ''} onChange={e => set('wheelset', e.target.value)} /></div>
+            <div><label style={L()}>🔲 Reifen</label><input style={I()} placeholder="z.B. 28c" value={draft.tireSize ?? ''} onChange={e => set('tireSize', e.target.value)} /></div>
           </div>
-
-          {/* Drivetrain + Brakes */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={lbl()}>🔧 Antrieb</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {DRIVETRAIN_OPTIONS.map(o => (
-                  <button key={o} style={chip(draft.drivetrain === o, t.purple)} onClick={() => set('drivetrain', draft.drivetrain === o ? undefined : o)}>{o}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={lbl()}>🛑 Bremsen</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {BRAKE_OPTIONS.map(o => (
-                  <button key={o} style={chip(draft.brakes === o, t.orange)} onClick={() => set('brakes', draft.brakes === o ? undefined : o)}>{o}</button>
-                ))}
-              </div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div><label style={L()}>⚖️ Gewicht (kg)</label><input style={I()} type="number" step="0.1" value={draft.weightKg ?? ''} onChange={e => set('weightKg', e.target.value)} /></div>
+            <div><label style={L()}>📅 Kaufjahr</label><input style={I()} type="number" placeholder="2023" value={draft.purchaseYear ?? ''} onChange={e => set('purchaseYear', e.target.value)} /></div>
+            <div><label style={L()}>💶 Preis (€)</label><input style={I()} type="number" placeholder="3500" value={draft.priceEur ?? ''} onChange={e => set('priceEur', e.target.value)} /></div>
           </div>
-
-          {/* Wheels + Tire size */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={lbl()}>🔵 Laufräder</label>
-              <input style={inp()} placeholder="z.B. Zipp 303 Firecrest" value={draft.wheelset ?? ''} onChange={e => set('wheelset', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl()}>🔲 Reifenbreite</label>
-              <input style={inp()} placeholder="z.B. 28c oder 40c" value={draft.tireSize ?? ''} onChange={e => set('tireSize', e.target.value)} />
-            </div>
-          </div>
-
-          {/* Weight + Year + Price */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={lbl()}>⚖️ Gewicht (kg)</label>
-              <input style={inp()} type="number" step="0.1" placeholder="7.8" value={draft.weightKg ?? ''} onChange={e => set('weightKg', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl()}>📅 Kaufjahr</label>
-              <input style={inp()} type="number" placeholder="2023" min={1990} max={2030} value={draft.purchaseYear ?? ''} onChange={e => set('purchaseYear', e.target.value)} />
-            </div>
-            <div>
-              <label style={lbl()}>💶 Preis (€)</label>
-              <input style={inp()} type="number" placeholder="3499" value={draft.priceEur ?? ''} onChange={e => set('priceEur', e.target.value)} />
-            </div>
-          </div>
-
-          {/* Use case */}
-          <div>
-            <label style={lbl()}>🎯 Verwendung (Mehrfach)</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {USE_CASES.map(u => (
-                <button key={u} style={chip(!!(draft.useCase ?? []).includes(u), t.green)} onClick={() => toggleUse(u)}>{u}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label style={lbl()}>📝 Notizen & Umbauten</label>
-            <textarea style={{ ...inp(), minHeight: 90, resize: 'vertical' }} placeholder="z.B. Sattel getauscht, Power Meter verbaut..." value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} />
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-            <button onClick={() => { onSave(draft) }} style={{ flex: 1, padding: '12px', background: `linear-gradient(90deg,${t.accent},#2563eb)`, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'inherit' }}>💾 Speichern</button>
-            <button onClick={onClose} style={{ padding: '12px 20px', background: 'transparent', border: `1px solid ${t.border}`, color: t.muted, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>Abbrechen</button>
+          <div><label style={L()}>🎯 Verwendung</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{['Road', 'Training', 'Rennen', 'Gravel', 'Commute', 'Indoor', 'Bergauf', 'TT'].map(u => <button key={u} style={CH(!!(draft.useCase ?? []).includes(u), c.green)} onClick={() => toggleUse(u)}>{u}</button>)}</div></div>
+          <div><label style={L()}>📝 Notizen & Umbauten</label><textarea style={{ ...I(), minHeight: 80, resize: 'vertical' } as React.CSSProperties} placeholder="Power Meter, Sattel, Bar Tape..." value={draft.notes ?? ''} onChange={e => set('notes', e.target.value)} /></div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => onSave(draft)} style={{ flex: 1, padding: 12, background: `linear-gradient(90deg,${bColor},${c.accent2})`, color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800, fontFamily: 'inherit', boxShadow: `0 4px 20px ${bColor}40` }}>💾 Speichern</button>
+            <button onClick={onClose} style={{ padding: '12px 20px', background: 'transparent', border: `1px solid ${c.border}`, color: c.muted, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>Abbrechen</button>
           </div>
         </div>
       </div>
@@ -487,16 +473,51 @@ function BikeModal({ bikeId, bikeName, bikeKm, bikeColor, initialData, onSave, o
   )
 }
 
-function Spinner() {
+/* ─── Fun Facts ──────────────────────────────────────────────────────── */
+function FunFacts({ stats }: { stats: DashboardData['stats'] }) {
+  const km = stats.allTime.km
+  const h = stats.allTime.hours
+  const elev = stats.allTime.elevation
+  const facts = [
+    { icon: '🌍', label: 'Erdumrundungen', value: (km / 40075).toFixed(2), unit: '×', color: c.accent },
+    { icon: '✈️', label: 'Strecke München → NYC', value: Math.floor(km / 6100), unit: '× Hin+Zurück', color: c.purple },
+    { icon: '🏔️', label: 'Mount Everest', value: Math.floor(elev / 8849), unit: '× bestiegen', color: c.yellow },
+    { icon: '⏰', label: 'Tage im Sattel', value: Math.round(h / 24), unit: 'Tage', color: c.green },
+    { icon: '🔥', label: 'Verbrannte Kalorien', value: Math.round(km * 35 / 1000), unit: 'Mio. kcal', color: c.orange },
+    { icon: '🌱', label: 'CO₂ gespart vs Auto', value: Math.round(km * 0.12), unit: 'kg CO₂', color: c.teal },
+    { icon: '🍕', label: 'Pizzen verdient (800kcal)', value: Math.round(km * 35 / 800), unit: 'Pizzen', color: c.red },
+    { icon: '🌙', label: 'Mondentfernung', value: ((km / 384400) * 100).toFixed(4), unit: '% erreicht', color: c.pink },
+  ]
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ width: 44, height: 44, borderRadius: '50%', border: `3px solid ${t.accent}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ color: t.muted, fontSize: 14 }}>Strava-Daten werden geladen…</div>
-      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 10 }}>
+      {facts.map((f, i) => (
+        <div key={f.label} style={{ background: `linear-gradient(135deg,${c.card},${c.card2})`, border: `1px solid ${f.color}20`, borderRadius: 14, padding: '16px 18px', animation: `slideUp .4s ${i * 0.06}s both`, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at top right, ${f.color}0a, transparent 60%)` }} />
+          <div style={{ fontSize: 22, marginBottom: 6 }}>{f.icon}</div>
+          <div style={{ fontSize: 10, color: c.muted, marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{f.label}</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: f.color, lineHeight: 1 }}>{f.value}</div>
+          <div style={{ fontSize: 10, color: c.muted, marginTop: 2 }}>{f.unit}</div>
+        </div>
+      ))}
     </div>
   )
 }
 
+/* ─── Main page spinner ──────────────────────────────────────────────── */
+function Spinner() {
+  return (
+    <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 20 }}>
+      <div style={{ position: 'relative', width: 60, height: 60 }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${c.accent}`, borderTopColor: 'transparent', animation: 'spin .7s linear infinite' }} />
+        <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', border: `2px solid ${c.accent2}`, borderBottomColor: 'transparent', animation: 'spinReverse 1.1s linear infinite' }} />
+      </div>
+      <div style={{ color: c.muted, fontSize: 13, letterSpacing: '1px' }}>STRAVA-DATEN LADEN…</div>
+      <style>{GLOBAL_CSS}</style>
+    </div>
+  )
+}
+
+/* ═══ MAIN PAGE ════════════════════════════════════════════════════════ */
 export default function MeinBereichPage() {
   const router = useRouter()
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -505,405 +526,422 @@ export default function MeinBereichPage() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState(60)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const cdRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [bikeExtras, setBikeExtras] = useState<Record<string, BikeExtra>>({})
   const [editBikeId, setEditBikeId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!isAuthenticated()) { router.replace('/login'); return }
-    setAuthed(true)
-    setBikeExtras(loadExtras())
-  }, [router])
+  const [activeTab, setActiveTab] = useState<'stats' | 'training' | 'garage'>('stats')
+  const iRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cdRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const DATA_URL = process.env.NEXT_PUBLIC_DATA_URL ?? '/api/strava/dashboard'
+
+  useEffect(() => { if (!isAuthenticated()) { router.replace('/login'); return }; setAuthed(true); setBikeExtras(loadExtras()) }, [router])
 
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch(DATA_URL, { cache: 'no-store' })
-      if (!res.ok) throw new Error(`API-Fehler ${res.status}`)
+      if (!res.ok) throw new Error(`API ${res.status}`)
       const json = await res.json()
       if (json.error) throw new Error(json.error)
       setData(json); setError(null); setLastUpdated(new Date()); setCountdown(60)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+    } catch (e) { setError(e instanceof Error ? e.message : 'Fehler') } finally { setLoading(false) }
+  }, [DATA_URL])
 
   useEffect(() => {
     if (!authed) return
     fetchDashboard()
-    intervalRef.current = setInterval(fetchDashboard, 60_000)
-    cdRef.current = setInterval(() => setCountdown(c => Math.max(c - 1, 0)), 1_000)
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      if (cdRef.current) clearInterval(cdRef.current)
-    }
+    iRef.current = setInterval(fetchDashboard, 60_000)
+    cdRef.current = setInterval(() => setCountdown(x => Math.max(x - 1, 0)), 1000)
+    return () => { if (iRef.current) clearInterval(iRef.current); if (cdRef.current) clearInterval(cdRef.current) }
   }, [authed, fetchDashboard])
 
   if (authed === null || loading) return <Spinner />
   if (error) return (
-    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: t.white }}>⚠️ Strava-Fehler</div>
-      <div style={{ fontSize: 14, color: t.muted, maxWidth: 400, textAlign: 'center' }}>{error}</div>
-      <button onClick={fetchDashboard} style={{ padding: '10px 20px', background: t.accent, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'inherit' }}>Nochmal versuchen</button>
+    <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <style>{GLOBAL_CSS}</style>
+      <div style={{ fontSize: 36 }}>⚠️</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: c.white }}>{error}</div>
+      <button onClick={fetchDashboard} style={{ padding: '10px 24px', background: c.accent, color: '#000', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontFamily: 'inherit' }}>Retry</button>
     </div>
   )
   if (!data) return null
 
   const { athlete, stats, heatmap, weeklyLoad, sportBreakdown, speedBuckets, hrZones, streak, records, monthlyKm, recentActivities } = data
-  const ytdGoalKm = 8000
-  const ytdPct = Math.min((stats.ytd.km / ytdGoalKm) * 100, 100).toFixed(0)
+  const ytdGoal = 8000
+  const ytdPct = Math.min((stats.ytd.km / ytdGoal) * 100, 100)
+  const maxWeekKm = Math.max(...weeklyLoad.map(w => w.km), 1)
   const maxMonthKm = Math.max(...monthlyKm.map(m => m.km), 1)
+  const bestWeek = weeklyLoad.reduce((b, w) => w.km > b.km ? w : b, weeklyLoad[0])
+  const bestMonth = monthlyKm.reduce((b, m) => m.km > b.km ? m : b, monthlyKm[0])
+  const totalSportCount = Object.values(sportBreakdown).reduce((s, v) => s + v.count, 0)
+  const editBike = editBikeId ? athlete.bikes.find((b: Bike) => b.id === editBikeId) : null
 
   return (
-    <div style={{ fontFamily: "'Inter',ui-sans-serif,system-ui,sans-serif", background: t.bg, color: t.text, minHeight: '100vh', WebkitFontSmoothing: 'antialiased', fontSize: 14 }}>
+    <div style={{ fontFamily: "'Inter',ui-sans-serif,system-ui,sans-serif", background: c.bg, color: c.text, minHeight: '100vh', WebkitFontSmoothing: 'antialiased' }}>
+      <style>{GLOBAL_CSS}</style>
 
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(6,13,24,0.92)', backdropFilter: 'blur(16px)', borderBottom: `1px solid ${t.border}`, height: 52, display: 'flex', alignItems: 'center' }}>
-        <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 20px', width: '100%', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/" style={{ color: t.muted, fontSize: 12 }}>← Karte</Link>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontWeight: 800, fontSize: 14, color: t.white }}>🚴 {athlete.name}</span>
-            {athlete.premium && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#FC4C02', color: '#fff' }}>SUMMIT</span>}
+      {/* ── NAV ──────────────────────────────────────────────────────── */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, height: 54, background: 'rgba(4,8,15,0.9)', backdropFilter: 'blur(20px)', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px', width: '100%', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Link href="/" style={{ color: c.muted, fontSize: 12, textDecoration: 'none' }}>← Karte</Link>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontWeight: 900, fontSize: 14, color: c.white }}>🚴 {athlete.name}</span>
+            {athlete.premium && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#FC4C02', color: '#fff' }}>SUMMIT</span>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {lastUpdated && (
-              <span style={{ fontSize: 11, color: t.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.green, display: 'inline-block', boxShadow: `0 0 6px ${t.green}` }} />
-                Live · {countdown}s
-              </span>
-            )}
-            <button onClick={() => fetchDashboard()} style={{ padding: '5px 12px', background: 'rgba(59,130,246,0.1)', border: `1px solid rgba(59,130,246,0.2)`, color: t.accent, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-              ↻ Aktualisieren
-            </button>
-            <button onClick={() => { logout(); router.push('/') }} style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${t.border}`, color: t.muted, borderRadius: 7, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Logout
-            </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {lastUpdated && <span style={{ fontSize: 11, color: c.muted, display: 'flex', alignItems: 'center', gap: 6 }}><GlowDot />{countdown}s</span>}
+            <button onClick={fetchDashboard} style={{ padding: '5px 12px', background: `${c.accent}15`, border: `1px solid ${c.accent}30`, color: c.accent, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>↻</button>
+            <button onClick={() => { logout(); router.push('/') }} style={{ padding: '5px 12px', background: 'transparent', border: `1px solid ${c.border}`, color: c.muted, borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Logout</button>
           </div>
         </div>
       </nav>
 
-      <section style={{ background: `linear-gradient(160deg,#0c1e38 0%,${t.bg} 70%)`, padding: '36px 0 28px', borderBottom: `1px solid ${t.border}` }}>
-        <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ width: 72, height: 72, borderRadius: 18, flexShrink: 0, background: `linear-gradient(135deg,#1e3a6e,${t.accent})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 900, color: '#fff', boxShadow: `0 0 0 3px ${t.bg},0 0 0 5px rgba(59,130,246,0.4)` }}>
+      {/* ── HERO ─────────────────────────────────────────────────────── */}
+      <section style={{ position: 'relative', overflow: 'hidden', padding: '52px 20px 44px', background: `linear-gradient(180deg,#060e1e 0%,${c.bg} 100%)` }}>
+        {/* floating orbs */}
+        {[[c.accent, -60, -40, 300, 300, 'float1 18s ease infinite'], [c.accent2, '80%', 20, 250, 250, 'float2 22s ease infinite -5s'], [c.purple, '50%', '60%', 180, 180, 'float3 15s ease infinite -8s']].map(([col, l, t, w, h, anim], i) => (
+          <div key={i} style={{ position: 'absolute', left: l as string | number, top: t as string | number, width: w as number, height: h as number, borderRadius: '50%', background: `radial-gradient(circle,${col}15,transparent 70%)`, animation: anim as string, pointerEvents: 'none' }} />
+        ))}
+        <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ width: 80, height: 80, borderRadius: 20, background: `linear-gradient(135deg,#1a3d6e,${c.accent})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 900, color: '#fff', boxShadow: `0 0 0 3px ${c.bg},0 0 0 5px ${c.accent}50, 0 0 30px ${c.accent}30`, animation: 'pulseGlow 3s ease infinite', flexShrink: 0 }}>
               {athlete.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 'clamp(1.3rem,2.5vw,1.8rem)', fontWeight: 900, color: t.white }}>{athlete.name}</h1>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 6 }}>
-                {([
-                  `📍 ${athlete.city}, ${athlete.country}`,
-                  `📅 Dabei seit ${athlete.memberSince}`,
-                  `👥 ${athlete.followers} Follower`,
-                  athlete.weight ? `⚖️ ${athlete.weight} kg` : null,
-                  `🏅 ${stats.allTime.count} Aktivitäten gesamt`,
-                ] as (string | null)[]).filter((x): x is string => x !== null).map(m => <span key={m} style={{ fontSize: 12, color: t.muted }}>{m}</span>)}
+            <div style={{ flex: 1 }}>
+              <h1 style={{ margin: 0, fontSize: 'clamp(1.6rem,3vw,2.4rem)', fontWeight: 900, color: c.white, lineHeight: 1.1 }}>{athlete.name}</h1>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+                {[`📍 ${athlete.city}`, `📅 seit ${athlete.memberSince}`, `👥 ${athlete.followers}`, `🚴 ${stats.allTime.count} Rides`].map(t => (
+                  <span key={t} style={{ fontSize: 12, color: c.muted, display: 'flex', alignItems: 'center', gap: 4 }}>{t}</span>
+                ))}
               </div>
             </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <a href="https://www.strava.com" target="_blank" rel="noopener" style={{ padding: '7px 14px', background: '#FC4C02', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>Strava 🏃</a>
-              <Link href="/viking-bike-challenge" style={{ padding: '7px 14px', background: 'rgba(59,130,246,0.1)', border: `1px solid rgba(59,130,246,0.2)`, color: t.accent, borderRadius: 8, fontSize: 12, fontWeight: 700 }}>Viking Bike →</Link>
-            </div>
+            {/* Big KM ring inline */}
+            <GoalRing pct={ytdPct} km={stats.ytd.km} goal={ytdGoal} />
+          </div>
+
+          {/* Quick stat strip */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginTop: 32 }}>
+            {([
+              { l: 'YTD Kilometer', v: stats.ytd.km, u: 'km', col: c.accent, d: 0 },
+              { l: 'YTD Stunden', v: stats.ytd.hours, u: 'h', col: c.purple, d: 0 },
+              { l: 'YTD Höhenmeter', v: stats.ytd.elevation, u: 'm', col: c.yellow, d: 0 },
+              { l: 'YTD Fahrten', v: stats.ytd.count, u: '', col: c.green, d: 0 },
+              { l: '4-Wochen km', v: stats.recent.km, u: 'km', col: c.orange, d: 0 },
+              { l: 'Gesamt km', v: stats.allTime.km, u: 'km', col: c.teal, d: 0 },
+              { l: 'Längste Fahrt', v: stats.biggestRideKm, u: 'km', col: c.pink, d: 0 },
+              { l: 'Everests ↑', v: parseFloat(stats.allTime.everests), u: '×', col: c.red, d: 1 },
+            ] as { l: string; v: number; u: string; col: string; d: number }[]).map((s, i) => (
+              <GlassCard key={s.l} glow={s.col} style={{ padding: '16px 18px' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: c.muted, marginBottom: 6 }}>{s.l}</div>
+                <AnimNum value={s.v} unit={s.u || undefined} color={s.col} delay={i * 60} />
+              </GlassCard>
+            ))}
           </div>
         </div>
       </section>
 
-      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '28px 20px 80px' }}>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 32 }}>
-          <StatPill value={stats.ytd.km.toLocaleString('de-DE')} unit="km" label="Kilometer YTD" color={t.accent} sub={`Ziel: ${ytdGoalKm.toLocaleString('de-DE')} km (${ytdPct}%)`} />
-          <StatPill value={stats.ytd.count} unit="Fahrten" label="Aktivitäten YTD" color={t.green} />
-          <StatPill value={stats.ytd.hours} unit="h" label="Stunden YTD" color={t.purple} />
-          <StatPill value={(stats.ytd.elevation / 1000).toFixed(1)} unit="km ↑" label="Höhenmeter YTD" color={t.yellow} />
-          <StatPill value={stats.recent.km.toLocaleString('de-DE')} unit="km" label="Letzte 4 Wochen" color={t.orange} sub={`${stats.recent.count} Fahrten`} />
-          <StatPill value={stats.allTime.everests} unit="× Everest" label="Alle Höhenmeter" color={t.red} sub={`${stats.allTime.elevation.toLocaleString('de-DE')} m`} />
-          <StatPill value={stats.biggestRideKm} unit="km" label="Längste Fahrt je" color={t.teal} />
-          <StatPill value={stats.allTime.km.toLocaleString('de-DE')} unit="km" label="Gesamt-km" color={t.accent} sub={`${stats.allTime.count} Fahrten`} />
-        </div>
-
-        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '20px 24px', marginBottom: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.white }}>Jahresziel 2026: {ytdGoalKm.toLocaleString('de-DE')} km</div>
-            <div style={{ fontSize: 13, color: t.muted }}>{stats.ytd.km.toLocaleString('de-DE')} km · {ytdPct}%</div>
-          </div>
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 999, height: 12, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${ytdPct}%`, borderRadius: 999, background: `linear-gradient(90deg,${t.accent},#60a5fa)`, position: 'relative' }}>
-              <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: `0 0 8px ${t.accent}` }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: t.muted }}>Jan</span>
-            <span style={{ fontSize: 10, color: t.muted }}>Dez</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 14, marginBottom: 32 }}>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 6 }}>
-            <div style={{ fontSize: 36 }}>🔥</div>
-            <div style={{ fontSize: 48, fontWeight: 900, color: streak.current > 0 ? t.orange : t.muted, lineHeight: 1 }}>{streak.current}</div>
-            <div style={{ fontSize: 12, color: t.muted }}>Tage in Folge</div>
-            <div style={{ width: '100%', height: 1, background: t.border, margin: '8px 0' }} />
-            <div style={{ fontSize: 22, fontWeight: 800, color: t.white }}>{streak.longest}</div>
-            <div style={{ fontSize: 11, color: t.muted }}>Bestes Streak</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
-            {([
-              { icon: '📏', label: 'Längste Fahrt', val: records.longestRide ? `${records.longestRide.km} km` : '—', sub: records.longestRide?.name, color: t.accent },
-              { icon: '⛰', label: 'Meiste Höhenmeter', val: records.mostElevation ? `${records.mostElevation.elevation.toLocaleString('de-DE')} m` : '—', sub: records.mostElevation?.name, color: t.yellow },
-              { icon: '⚡', label: 'Schnellste Fahrt', val: records.fastestRide ? `${records.fastestRide.kmh} km/h` : '—', sub: records.fastestRide ? `${records.fastestRide.name} (${records.fastestRide.km} km)` : undefined, color: t.green },
-              { icon: '😣', label: 'Härteste Fahrt', val: records.mostSuffering ? `${records.mostSuffering.score} Pain` : '—', sub: records.mostSuffering?.name, color: t.red },
-            ] as { icon: string; label: string; val: string; sub?: string; color: string }[]).map(r => (
-              <div key={r.label} style={{ background: t.card2, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: t.muted, marginBottom: 4 }}>{r.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: r.color }}>{r.val}</div>
-                {r.sub && <div style={{ fontSize: 11, color: t.muted, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sub}</div>}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24, marginBottom: 32 }}>
-          <SectionTitle label="Aktivitäten 2025–2026" title="Aktivitäts-Heatmap" />
-          <ActivityHeatmap heatmap={heatmap} />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 32 }}>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24 }}>
-            <SectionTitle label="Training" title="Wöchentliche Belastung" />
-            <WeeklyLoadChart data={weeklyLoad} />
-          </div>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24 }}>
-            <SectionTitle label="Statistik 2026" title="Monatliche Kilometer" />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110, marginBottom: 6 }}>
-              {monthlyKm.map((m, i) => {
-                const pct = m.km > 0 ? (m.km / maxMonthKm) * 100 : 0
-                const isCur = i === new Date().getMonth()
-                return (
-                  <div key={m.month} title={`${m.month}: ${m.km} km, ${m.rides} Fahrten`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                    {m.km > 0 && <div style={{ fontSize: 9, color: isCur ? t.accent : t.muted, fontWeight: 700 }}>{m.km}</div>}
-                    <div style={{ width: '100%', height: `${Math.max(pct, m.km > 0 ? 3 : 0)}%`, minHeight: m.km > 0 ? 3 : 0, background: isCur ? `linear-gradient(180deg,${t.accent},#1d4ed8)` : m.km > 0 ? 'rgba(59,130,246,0.35)' : 'rgba(255,255,255,0.04)', borderRadius: '4px 4px 2px 2px' }} />
-                    <div style={{ fontSize: 9, color: isCur ? t.accent : t.muted, fontWeight: isCur ? 700 : 400 }}>{m.month}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 32 }}>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24 }}>
-            <SectionTitle label="Analyse" title="Sport-Verteilung" />
-            <SportBreakdown data={sportBreakdown} />
-          </div>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24 }}>
-            <SectionTitle label="Analyse" title="Geschwindigkeit" />
-            <SpeedDistribution buckets={speedBuckets} />
-          </div>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24 }}>
-            <SectionTitle label="Kondition" title="Herzfrequenz-Zonen" />
-            <HrZones zones={hrZones} />
-          </div>
-        </div>
-
-        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 24, marginBottom: 32 }}>
-          <SectionTitle label="All-time" title="Karriere-Statistiken" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
-            {([
-              { label: 'Gesamte Distanz', val: `${stats.allTime.km.toLocaleString('de-DE')} km`, sub: `≈ ${(stats.allTime.km / 40075).toFixed(2)}× Erdumfang` },
-              { label: 'Gesamte Stunden', val: `${stats.allTime.hours.toLocaleString('de-DE')} h`, sub: `${(stats.allTime.hours / 24).toFixed(0)} Tage im Sattel` },
-              { label: 'Gesamte Höhenmeter', val: `${stats.allTime.elevation.toLocaleString('de-DE')} m`, sub: `${stats.allTime.everests}× Mount Everest` },
-              { label: 'Gesamte Fahrten', val: stats.allTime.count.toLocaleString('de-DE'), sub: `Ø ${(stats.allTime.km / Math.max(stats.allTime.count, 1)).toFixed(0)} km/Fahrt` },
-              { label: 'Bikes in Garage', val: String(athlete.bikes.length), sub: athlete.bikes.find((b: { primary: boolean; name: string }) => b.primary)?.name ?? '—' },
-            ] as { label: string; val: string; sub: string }[]).map(s => (
-              <div key={s.label} style={{ background: t.card2, borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: t.muted, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: t.white }}>{s.val}</div>
-                <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{s.sub}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 32 }}>
-          <SectionTitle label="Aktivitäten" title="Letzte Fahrten" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {recentActivities.map(act => {
-              const color = SPORT_COLORS[act.sport_type] ?? t.accent
-              const icon = SPORT_ICONS[act.sport_type] ?? '🚴'
-              return (
-                <div key={act.id} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 16, alignItems: 'flex-start', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color, borderRadius: '3px 0 0 3px' }} />
-                  <div style={{ paddingLeft: 6, flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <span>{icon}</span>
-                        <span style={{ fontWeight: 700, color: t.white, fontSize: 14 }}>{act.name}</span>
-                        {act.prCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(234,179,8,0.15)', color: t.yellow }}>🏆 {act.prCount} PR</span>}
-                        {(act.sufferScore ?? 0) > 100 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(244,63,94,0.12)', color: t.red }}>🔥</span>}
-                      </div>
-                      <span style={{ fontSize: 11, color: t.muted, flexShrink: 0 }}>{dateFmt(act.date)}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-                      {([
-                        { v: `${act.km} km`, i: '📏' },
-                        { v: durStr(act.durationMin), i: '⏱' },
-                        { v: `${act.avgSpeedKmh} km/h`, i: '⚡' },
-                        ...(act.elevation > 0 ? [{ v: `${act.elevation.toLocaleString('de-DE')}m`, i: '⛰' }] : []),
-                        ...(act.avgHr ? [{ v: `${act.avgHr} bpm`, i: '❤️' }] : []),
-                        ...(act.watts ? [{ v: `${act.watts}W`, i: '💪' }] : []),
-                        ...(act.sufferScore ? [{ v: `${act.sufferScore}`, i: '😣' }] : []),
-                        ...(act.kudos > 0 ? [{ v: `${act.kudos}`, i: '👍' }] : []),
-                      ] as { v: string; i: string }[]).map(s => (
-                        <span key={s.i + s.v} style={{ fontSize: 12, color: t.text, display: 'flex', alignItems: 'center', gap: 4 }}>{s.i} {s.v}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <a href={`https://www.strava.com/activities/${act.id}`} target="_blank" rel="noopener"
-                    style={{ fontSize: 11, color: t.muted, border: `1px solid ${t.border}`, padding: '4px 10px', borderRadius: 7, flexShrink: 0 }}>Strava ↗</a>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
-            <SectionTitle label="Garage" title="Meine Bikes" />
-            <div style={{ fontSize: 11, color: t.muted, marginBottom: 24 }}>Klicke auf «Bearbeiten» um Fotos & Details hinzuzufügen</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 16 }}>
-            {athlete.bikes.map((bike: { id: string; name: string; brand: string; model: string; km: number; primary: boolean }, i: number) => {
-              const color = ([t.accent, t.purple, t.yellow, t.green] as string[])[i % 4]
-              const extra = bikeExtras[bike.id] ?? {}
-              const displayName = extra.nickname || bike.name || `${bike.brand} ${bike.model}`
-              const kmPct = Math.min((bike.km / 20000) * 100, 100)
-              const kmColor = bike.km > 15000 ? t.red : bike.km > 8000 ? t.orange : color
-              const specs: { icon: string; label: string; value: string }[] = [
-                ...(extra.frameMaterial ? [{ icon: '🏗', label: 'Rahmen', value: extra.frameMaterial + (extra.frameSize ? ' · ' + extra.frameSize : '') }] : []),
-                ...(extra.groupset ? [{ icon: '⚙️', label: 'Schaltgruppe', value: extra.groupset }] : []),
-                ...(extra.drivetrain ? [{ icon: '🔧', label: 'Antrieb', value: extra.drivetrain }] : []),
-                ...(extra.brakes ? [{ icon: '🛑', label: 'Bremsen', value: extra.brakes }] : []),
-                ...(extra.wheelset ? [{ icon: '🔵', label: 'Laufräder', value: extra.wheelset }] : []),
-                ...(extra.tireSize ? [{ icon: '🔲', label: 'Reifen', value: extra.tireSize }] : []),
-                ...(extra.weightKg ? [{ icon: '⚖️', label: 'Gewicht', value: extra.weightKg + ' kg' }] : []),
-                ...(extra.purchaseYear ? [{ icon: '📅', label: 'Kaufjahr', value: extra.purchaseYear + (extra.priceEur ? ' · ' + Number(extra.priceEur).toLocaleString('de-DE') + ' €' : '') }] : []),
-              ]
-              return (
-                <div key={bike.id} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  {/* Photo */}
-                  {extra.photo
-                    ? <img src={extra.photo} alt={displayName} style={{ width: '100%', height: 180, objectFit: 'cover' }} />
-                    : (
-                      <div onClick={() => setEditBikeId(bike.id)} style={{ width: '100%', height: 100, background: `linear-gradient(135deg,${color}18,${color}05)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderBottom: `1px solid ${t.border}`, position: 'relative' }}>
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: color }} />
-                        <div style={{ textAlign: 'center', color: t.muted }}>
-                          <div style={{ fontSize: 28 }}>🚲</div>
-                          <div style={{ fontSize: 11, marginTop: 4 }}>Foto hinzufügen</div>
-                        </div>
-                      </div>
-                    )}
-                  <div style={{ padding: '16px 18px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* Title row */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 800, fontSize: 15, color: t.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-                        <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{bike.brand} {bike.model}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                        {bike.primary && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${color}20`, color }}>Primär</span>}
-                      </div>
-                    </div>
-
-                    {/* Use case badges */}
-                    {(extra.useCase ?? []).length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                        {(extra.useCase ?? []).map(u => (
-                          <span key={u} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${t.green}15`, color: t.green }}>{u}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* KM progress */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ fontSize: 11, color: t.muted }}>Gefahrene Kilometer</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: t.white }}>{bike.km.toLocaleString('de-DE')} km</span>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 999, height: 7, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${kmPct}%`, background: `linear-gradient(90deg,${kmColor},${kmColor}cc)`, borderRadius: 999 }} />
-                      </div>
-                      <div style={{ fontSize: 10, color: t.muted, marginTop: 4 }}>
-                        {bike.km > 15000 ? '⚠️ Wartung empfohlen' : bike.km > 8000 ? '🔄 Bald Wartung' : '✅ In gutem Zustand'} · Basis: 20.000 km
-                      </div>
-                    </div>
-
-                    {/* Spec grid */}
-                    {specs.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        {specs.map(s => (
-                          <div key={s.label} style={{ background: t.card2, borderRadius: 8, padding: '8px 10px' }}>
-                            <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>{s.icon} {s.label}</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: t.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    {extra.notes && (
-                      <div style={{ background: t.card2, borderRadius: 8, padding: '10px 12px', fontSize: 12, color: t.text, lineHeight: 1.5 }}>
-                        <span style={{ color: t.muted, marginRight: 6 }}>📝</span>{extra.notes}
-                      </div>
-                    )}
-
-                    {/* Edit button */}
-                    <button onClick={() => setEditBikeId(bike.id)}
-                      style={{ marginTop: 'auto', padding: '10px', background: `${color}12`, border: `1px solid ${color}30`, color, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', width: '100%' }}>
-                      ✏️ {specs.length > 0 ? 'Details bearbeiten' : 'Details ausfüllen'}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Bike modal */}
-          {editBikeId && (() => {
-            const bike = athlete.bikes.find((b: { id: string }) => b.id === editBikeId)
-            if (!bike) return null
-            const i = athlete.bikes.indexOf(bike)
-            const color = ([t.accent, t.purple, t.yellow, t.green] as string[])[i % 4]
-            return (
-              <BikeModal
-                bikeId={bike.id}
-                bikeName={bikeExtras[bike.id]?.nickname || bike.name || `${bike.brand} ${bike.model}`}
-                bikeKm={bike.km}
-                bikeColor={color}
-                initialData={bikeExtras[bike.id] ?? {}}
-                onSave={d => {
-                  const next = { ...bikeExtras, [bike.id]: d }
-                  setBikeExtras(next)
-                  saveExtras(next)
-                  setEditBikeId(null)
-                }}
-                onClose={() => setEditBikeId(null)}
-              />
-            )
-          })()}
+      {/* ── PAGE TABS ────────────────────────────────────────────────── */}
+      <div style={{ background: c.bg2, borderBottom: `1px solid ${c.border}`, position: 'sticky', top: 54, zIndex: 90 }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px', display: 'flex', gap: 0 }}>
+          {([['stats', '📊 Dashboard'], ['training', '🏋️ Training'], ['garage', '🚲 Garage']] as [typeof activeTab, string][]).map(([tab, label]) => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '14px 20px', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === tab ? c.accent : 'transparent'}`, color: activeTab === tab ? c.accent : c.muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <footer style={{ padding: '20px 0', borderTop: `1px solid ${t.border}`, textAlign: 'center', color: t.muted, fontSize: 11 }}>
-        <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 20px' }}>
-          {lastUpdated && `Zuletzt: ${lastUpdated.toLocaleTimeString('de-DE')} · `}
-          {data.totalActivitiesLoaded} Aktivitäten via Strava API ·{' '}
-          <Link href="/" style={{ color: t.muted }}>NordCup Karte</Link>
-          {' · '}
-          <Link href="/viking-bike-challenge" style={{ color: t.muted }}>Viking Bike Challenge</Link>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 20px 80px' }}>
+
+        {/* ══ STATS TAB ══════════════════════════════════════════════ */}
+        {activeTab === 'stats' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+            {/* Streak + Records */}
+            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 14, alignItems: 'stretch' }}>
+              <GlassCard glow={streak.current > 0 ? c.orange : c.muted} style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 6 }}>
+                <div style={{ fontSize: 48, animation: streak.current > 0 ? 'fireflicker 1s ease infinite' : undefined }}>🔥</div>
+                <AnimNum value={streak.current} color={c.orange} size="3.5rem" />
+                <div style={{ fontSize: 11, color: c.muted }}>Tage in Folge</div>
+                <div style={{ height: 1, width: '80%', background: c.border, margin: '6px 0' }} />
+                <div style={{ fontSize: 20, fontWeight: 900, color: c.white }}>{streak.longest}</div>
+                <div style={{ fontSize: 11, color: c.muted }}>Bestes Streak</div>
+              </GlassCard>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+                {([
+                  { icon: '📏', t: 'Längste Fahrt', v: records.longestRide ? `${records.longestRide.km} km` : '—', sub: records.longestRide?.name, col: c.accent },
+                  { icon: '⛰', t: 'Meiste Höhenmeter', v: records.mostElevation ? `${fmt(records.mostElevation.elevation)} m` : '—', sub: records.mostElevation?.name, col: c.yellow },
+                  { icon: '⚡', t: 'Schnellste Fahrt', v: records.fastestRide ? `${records.fastestRide.kmh} km/h` : '—', sub: records.fastestRide?.name, col: c.green },
+                  { icon: '😣', t: 'Härteste Fahrt', v: records.mostSuffering ? `${records.mostSuffering.score} Pain` : '—', sub: records.mostSuffering?.name, col: c.red },
+                ] as { icon: string; t: string; v: string; sub?: string; col: string }[]).map(r => (
+                  <GlassCard key={r.t} glow={r.col} style={{ padding: 18 }}>
+                    <div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: c.muted, marginBottom: 4 }}>{r.t}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: r.col }}>{r.v}</div>
+                    {r.sub && <div style={{ fontSize: 11, color: c.muted, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.sub}</div>}
+                  </GlassCard>
+                ))}
+              </div>
+            </div>
+
+            {/* Heatmap */}
+            <GlassCard style={{ padding: 28 }}>
+              <SectionLabel tag="Aktivitäten" title="Heatmap — 365 Tage" sub="Hover über Kästchen für Details" />
+              <HeatmapGrid heatmap={heatmap} />
+            </GlassCard>
+
+            {/* Fun Facts */}
+            <div>
+              <SectionLabel tag="Wow-Faktor" title="Was du wirklich geleistet hast" />
+              <FunFacts stats={stats} />
+            </div>
+
+            {/* Recent Activities */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
+                <SectionLabel tag="Aktivitäten" title="Letzte Fahrten" />
+                <div style={{ fontSize: 11, color: c.muted, marginBottom: 24 }}>{data.totalActivitiesLoaded} geladen</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recentActivities.map((act, i) => {
+                  const col = SPORT_COLORS[act.sport_type] ?? c.accent
+                  const icon = SPORT_ICON[act.sport_type] ?? '🚴'
+                  return (
+                    <div key={act.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'center', animation: `slideUp .4s ${i * 0.04}s both`, position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg,${col},${col}40)`, borderRadius: '3px 0 0 3px' }} />
+                      <div style={{ paddingLeft: 6, flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span>{icon}</span>
+                            <span style={{ fontWeight: 800, color: c.white, fontSize: 13 }}>{act.name}</span>
+                            {act.prCount > 0 && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: `${c.yellow}20`, color: c.yellow, border: `1px solid ${c.yellow}30` }}>🏆 {act.prCount} PR</span>}
+                            {(act.sufferScore ?? 0) > 100 && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: `${c.red}15`, color: c.red }}>🔥 {act.sufferScore}</span>}
+                          </div>
+                          <span style={{ fontSize: 11, color: c.muted, flexShrink: 0 }}>{dateDE(act.date)}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                          {[
+                            { i: '📏', v: `${act.km} km` }, { i: '⏱', v: durStr(act.durationMin) }, { i: '⚡', v: `${act.avgSpeedKmh} km/h` },
+                            act.elevation > 0 && { i: '⛰', v: `${fmt(act.elevation)} m` },
+                            act.avgHr && { i: '❤️', v: `${act.avgHr} bpm` },
+                            act.watts && { i: '💪', v: `${act.watts} W` },
+                            act.kudos > 0 && { i: '👍', v: String(act.kudos) },
+                          ].filter(Boolean).map(s => s && <span key={s.i} style={{ fontSize: 12, color: c.text, display: 'flex', alignItems: 'center', gap: 4 }}>{s.i} {s.v}</span>)}
+                        </div>
+                      </div>
+                      <a href={`https://www.strava.com/activities/${act.id}`} target="_blank" rel="noopener" style={{ fontSize: 11, color: c.muted, border: `1px solid ${c.border}`, padding: '4px 10px', borderRadius: 7, flexShrink: 0, textDecoration: 'none' }}>Strava ↗</a>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ TRAINING TAB ═══════════════════════════════════════════ */}
+        {activeTab === 'training' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+            {/* Weekly + Monthly side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Training" title="Wöchentliche Belastung" sub={`Beste Woche: ${bestWeek.label} · ${bestWeek.km} km`} />
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 110, marginBottom: 8 }}>
+                  {weeklyLoad.map((w, i) => {
+                    const pct = (w.km / maxWeekKm) * 100
+                    const isCur = i === weeklyLoad.length - 1
+                    const isBest = w.km === bestWeek.km
+                    const col = isBest ? c.yellow : isCur ? c.accent : w.km > 0 ? `${c.accent}60` : 'rgba(255,255,255,0.04)'
+                    return (
+                      <div key={i} title={`${w.label}: ${w.km} km, ${w.rides} Rides`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+                        {w.km > 0 && <div style={{ fontSize: 8, color: isBest ? c.yellow : isCur ? c.accent : c.muted, fontWeight: 700 }}>{w.km}</div>}
+                        <div style={{ width: '100%', height: `${Math.max(pct, 2)}%`, background: `linear-gradient(180deg,${col},${col}99)`, borderRadius: '4px 4px 2px 2px', boxShadow: (isBest || isCur) ? `0 0 8px ${col}60` : 'none', transition: 'height 1s ease', minHeight: w.km > 0 ? 3 : 0 }} />
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {weeklyLoad.map((w, i) => <div key={i} style={{ flex: 1, fontSize: 7, color: i === weeklyLoad.length - 1 ? c.accent : c.muted, textAlign: 'center', overflow: 'hidden' }}>{i % 3 === 0 || i === weeklyLoad.length - 1 ? w.label : ''}</div>)}
+                </div>
+              </GlassCard>
+
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="2026" title="Monatliche km" sub={`Bestes Monat: ${bestMonth.month} · ${bestMonth.km} km`} />
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 110, marginBottom: 8 }}>
+                  {monthlyKm.map((m, i) => {
+                    const pct = (m.km / maxMonthKm) * 100
+                    const isCur = i === new Date().getMonth()
+                    const isBest = m.km === bestMonth.km && m.km > 0
+                    const col = isBest ? c.yellow : isCur ? c.accent : m.km > 0 ? `${c.purple}80` : 'rgba(255,255,255,0.03)'
+                    return (
+                      <div key={m.month} title={`${m.month}: ${m.km} km, ${m.rides} Rides`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                        {m.km > 0 && <div style={{ fontSize: 8, color: isBest ? c.yellow : isCur ? c.accent : c.muted, fontWeight: 700 }}>{m.km}</div>}
+                        <div style={{ width: '100%', height: `${Math.max(pct, 2)}%`, background: `linear-gradient(180deg,${col},${col}80)`, borderRadius: '4px 4px 2px 2px', minHeight: m.km > 0 ? 3 : 0 }} />
+                        <div style={{ fontSize: 8, color: isCur ? c.accent : c.muted, fontWeight: isCur ? 800 : 400 }}>{m.month}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </GlassCard>
+            </div>
+
+            {/* Sport breakdown + Speed + HR + Day radar */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Analyse" title="Sport-Verteilung" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {Object.entries(sportBreakdown).sort((a, b) => b[1].count - a[1].count).map(([label, val], i) => {
+                    const pct = Math.round((val.count / totalSportCount) * 100)
+                    const cols = [c.accent, c.purple, c.yellow, c.green, c.teal, c.orange]
+                    const col = cols[i % cols.length]
+                    return (
+                      <div key={label}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <span style={{ fontSize: 12, color: c.text, fontWeight: 600 }}>{label}</span>
+                          <span style={{ fontSize: 11, color: c.muted }}>{val.count}× · {Math.round(val.km)} km · {pct}%</span>
+                        </div>
+                        <AnimBar pct={pct} color={col} delay={i * 80} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </GlassCard>
+
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Wochentag-Radar" title="Training nach Wochentag" />
+                <DayRadar heatmap={heatmap} />
+              </GlassCard>
+            </div>
+
+            {/* Speed + HR */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Speed" title="Geschwindigkeits-Verteilung" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {speedBuckets.map((b, i) => {
+                    const total = speedBuckets.reduce((s, x) => s + x.count, 0)
+                    const pct = total > 0 ? Math.round((b.count / total) * 100) : 0
+                    const maxCount = Math.max(...speedBuckets.map(x => x.count), 1)
+                    const barPct = (b.count / maxCount) * 100
+                    const cols = [c.muted, c.teal, c.accent, c.purple, c.orange, c.red]
+                    return (
+                      <div key={b.label}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, color: c.text }}>{b.label} km/h</span>
+                          <span style={{ fontSize: 11, color: c.muted }}>{b.count} · {pct}%</span>
+                        </div>
+                        <AnimBar pct={barPct} color={cols[i] ?? c.accent} height={12} delay={i * 80} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </GlassCard>
+
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Kondition" title="Herzfrequenz-Zonen" />
+                {hrZones.reduce((s, z) => s + z.count, 0) === 0
+                  ? <div style={{ color: c.muted, fontSize: 13, textAlign: 'center', paddingTop: 20 }}>Keine HF-Daten</div>
+                  : <>
+                    <div style={{ height: 18, borderRadius: 9, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 20 }}>
+                      {hrZones.map(z => z.count > 0 && <div key={z.label} style={{ flex: z.count, background: z.color }} />)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {hrZones.map((z, i) => {
+                        const total = hrZones.reduce((s, x) => s + x.count, 0)
+                        const pct = Math.round((z.count / total) * 100)
+                        const max = Math.max(...hrZones.map(x => x.count), 1)
+                        return (
+                          <div key={z.label}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <div style={{ width: 10, height: 10, borderRadius: 2, background: z.color }} />
+                                <span style={{ fontSize: 12, color: c.text }}>{z.label}</span>
+                              </div>
+                              <span style={{ fontSize: 11, color: z.color, fontWeight: 700 }}>{pct}%</span>
+                            </div>
+                            <AnimBar pct={(z.count / max) * 100} color={z.color} height={8} delay={i * 80} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>}
+              </GlassCard>
+            </div>
+          </div>
+        )}
+
+        {/* ══ GARAGE TAB ═════════════════════════════════════════════ */}
+        {activeTab === 'garage' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <SectionLabel tag="Meine Bikes" title="Fahrzeug-Garage" sub="Hover für Tech-Specs · Klicken für Details" />
+              <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+                {([{ icon: '🚲', label: `${athlete.bikes.length} Bikes` }, { icon: '📏', label: `${fmt(stats.allTime.km)} km` }, { icon: '⚙️', label: `${Object.values(bikeExtras).filter(e => e.groupset).length} konfiguriert` }] as {icon:string;label:string}[]).map(s => (
+                  <div key={s.label} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 10, padding: '8px 14px', fontSize: 12, color: c.text, display: 'flex', alignItems: 'center', gap: 6 }}>{s.icon} {s.label}</div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 20 }}>
+              {athlete.bikes.map((bike: Bike, i: number) => (
+                <BikeCard key={bike.id} bike={bike} extra={bikeExtras[bike.id] ?? {}} color={BIKE_COLORS[i % BIKE_COLORS.length]} onEdit={() => setEditBikeId(bike.id)} />
+              ))}
+            </div>
+
+            {/* Bike comparison table */}
+            {athlete.bikes.length > 1 && (
+              <GlassCard style={{ padding: 24, marginTop: 8 }}>
+                <SectionLabel tag="Vergleich" title="Bikes nebeneinander" />
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${c.border}` }}>
+                        <th style={{ textAlign: 'left', padding: '8px 12px', color: c.muted, fontWeight: 700 }}>Eigenschaft</th>
+                        {athlete.bikes.map((bike: Bike, i: number) => <th key={bike.id} style={{ textAlign: 'center', padding: '8px 12px', color: BIKE_COLORS[i % BIKE_COLORS.length], fontWeight: 800 }}>{bikeExtras[bike.id]?.nickname || bike.name || `${bike.brand} ${bike.model}`}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { k: 'Kilometer', fn: (b: Bike) => `${fmt(b.km)} km` },
+                        { k: 'Schaltgruppe', fn: (b: Bike) => bikeExtras[b.id]?.groupset ?? '—' },
+                        { k: 'Rahmen', fn: (b: Bike) => bikeExtras[b.id]?.frameMaterial ?? '—' },
+                        { k: 'Gewicht', fn: (b: Bike) => bikeExtras[b.id]?.weightKg ? bikeExtras[b.id].weightKg + ' kg' : '—' },
+                        { k: 'Kaufjahr', fn: (b: Bike) => bikeExtras[b.id]?.purchaseYear ?? '—' },
+                        { k: 'Status', fn: (b: Bike) => b.km > 15000 ? '⚠️ Wartung' : b.km > 8000 ? '🔄 Bald' : '✅ Top' },
+                      ].map((row, ri) => (
+                        <tr key={row.k} style={{ borderBottom: `1px solid ${c.border}`, background: ri % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                          <td style={{ padding: '9px 12px', color: c.muted, fontWeight: 600 }}>{row.k}</td>
+                          {athlete.bikes.map((bike: Bike) => <td key={bike.id} style={{ padding: '9px 12px', color: c.text, textAlign: 'center' }}>{row.fn(bike)}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── BIKE MODAL ───────────────────────────────────────────────── */}
+      {editBike && (
+        <BikeModal
+          bikeId={editBike.id}
+          bikeName={bikeExtras[editBike.id]?.nickname || editBike.name || `${editBike.brand} ${editBike.model}`}
+          bikeKm={editBike.km}
+          bColor={BIKE_COLORS[athlete.bikes.indexOf(editBike) % BIKE_COLORS.length]}
+          init={bikeExtras[editBike.id] ?? {}}
+          onSave={d => { const n = { ...bikeExtras, [editBike.id]: d }; setBikeExtras(n); saveExtras(n); setEditBikeId(null) }}
+          onClose={() => setEditBikeId(null)}
+        />
+      )}
+
+      {/* ── FOOTER ───────────────────────────────────────────────────── */}
+      <footer style={{ padding: '20px 0', borderTop: `1px solid ${c.border}`, textAlign: 'center', color: c.muted, fontSize: 11, background: c.bg2 }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px' }}>
+          {lastUpdated && `Stand: ${lastUpdated.toLocaleTimeString('de-DE')} · `}
+          {data.totalActivitiesLoaded} Aktivitäten · {' '}
+          <Link href="/" style={{ color: c.muted }}>Karte</Link>{' · '}
+          <Link href="/viking-bike-challenge" style={{ color: c.muted }}>Viking Bike</Link>
         </div>
       </footer>
     </div>
