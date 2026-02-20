@@ -164,6 +164,7 @@ interface BikeExtra { photo?: string; nickname?: string; frameMaterial?: string;
 /* ─── Hardcoded bike defaults (always shown even on fresh load) ───────── */
 const DEFAULT_EXTRAS: Record<string, BikeExtra> = {
   'b15747194': { // Factor Ostro VAM
+    photo: '/nordcup-map/bikes/factor-ostro-vam.jpg',
     nickname: 'Ostro VAM', frameMaterial: 'Carbon', frameSize: '56',
     groupset: 'Shimano Ultegra Di2 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
     wheelset: 'Aerycs Aero CS DT-Swiss 240', tireSize: 'Pirelli P-Zero 30mm',
@@ -171,6 +172,7 @@ const DEFAULT_EXTRAS: Record<string, BikeExtra> = {
     useCase: ['Road', 'Race'], notes: 'Powermeter',
   },
   'b17314789': { // Factor O2 VAM
+    photo: '/nordcup-map/bikes/factor-o2-vam.jpg',
     nickname: 'O2 VAM', frameMaterial: 'Carbon', frameSize: '56',
     groupset: 'SRAM Force E1 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
     wheelset: 'Black Inc Thirty', tireSize: 'Pirelli P-Zero 30mm',
@@ -178,6 +180,7 @@ const DEFAULT_EXTRAS: Record<string, BikeExtra> = {
     useCase: ['Road', 'Race'], notes: 'Powermeter',
   },
   'b15747190': { // Colnago G4-X
+    photo: '/nordcup-map/bikes/colnago-g4x.jpg',
     nickname: 'G4-X', frameMaterial: 'Carbon', frameSize: '56',
     groupset: 'Shimano GRX 825 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
     wheelset: 'Campagnolo Shamal 40', tireSize: 'Pirelli P-Zero 45mm',
@@ -185,6 +188,7 @@ const DEFAULT_EXTRAS: Record<string, BikeExtra> = {
     useCase: ['Gravel'], notes: 'Powermeter',
   },
   'b17300742': { // FARA GR4
+    photo: '/nordcup-map/bikes/fara-gr4.webp',
     nickname: 'GR-4', frameMaterial: 'Carbon', frameSize: '56',
     groupset: 'SRAM Force E1 XPLR 13-fach', drivetrain: '1x', brakes: 'Disc Hyd.',
     wheelset: 'Zipp 303 XPLR', tireSize: 'Schwalbe Thunder Burt 57mm',
