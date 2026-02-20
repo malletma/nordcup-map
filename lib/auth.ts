@@ -25,7 +25,7 @@ async function sha256(message: string): Promise<string> {
  */
 export async function login(password: string): Promise<boolean> {
   const expectedHash =
-    process.env.NEXT_PUBLIC_PASSWORD_HASH ??
+    process.env.NEXT_PUBLIC_PASSWORD_HASH ||
     '3e138a3690f57fbed73cf277da807a9058ba6a37711c3f2c0ba084dfe400e941'
   const inputHash = await sha256(password)
 
