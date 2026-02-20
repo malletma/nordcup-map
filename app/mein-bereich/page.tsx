@@ -1064,6 +1064,12 @@ export default function MeinBereichPage() {
       const saved = localStorage.getItem('nordcup-prefs')
       if (saved) { const p = JSON.parse(saved); if (p.dark !== undefined) setDark(p.dark); if (p.lang) setLang(p.lang) }
     } catch { /* ignore */ }
+    // Handle hash-based deep links (e.g. #rennen from redirect)
+    const hash = window.location.hash.replace('#', '') as typeof activeTab
+    if (['stats', 'training', 'garage', 'rennen'].includes(hash)) {
+      setActiveTab(hash)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
   }, [router])
 
   // Persist preferences
@@ -1131,7 +1137,7 @@ export default function MeinBereichPage() {
 
   return (
     <ThemeCtx.Provider value={ctxValue}>
-      <div style={{ fontFamily: "'Inter',ui-sans-serif,system-ui,sans-serif", background: theme.bg, color: theme.text, minHeight: '100vh', WebkitFontSmoothing: 'antialiased', transition: 'background .3s,color .3s' }}>
+      <div style={{ fontFamily: "var(--font-inter,'Inter'),ui-sans-serif,system-ui,sans-serif", background: theme.bg, color: theme.text, minHeight: '100vh', WebkitFontSmoothing: 'antialiased', transition: 'background .3s,color .3s' }}>
         <style>{buildCSS(theme)}</style>
 
         {/* Toast */}

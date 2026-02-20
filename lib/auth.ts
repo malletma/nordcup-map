@@ -1,12 +1,40 @@
+/**
+ * Client-side authentication with SHA-256 hashed password comparison.
+ *
+ * The plaintext password is NEVER stored in the JS bundle.
+ * Only the SHA-256 hash is shipped via NEXT_PUBLIC_PASSWORD_HASH.
+ *
+ * On Vercel / server-deployed environments, consider upgrading to
+ * NextAuth.js or server-side session-based auth.
+ */
+
 const TOKEN_KEY = 'nordcup_auth'
 const TOKEN_VALUE = 'authenticated'
 
-export function login(password: string): boolean {
-  const expected = process.env.NEXT_PUBLIC_SITE_PASSWORD ?? 'radfahren2026'
-  if (password === expected) {
+async function sha256(message: string): Promise<string> {
+  const data = new TextEncoder().encode(message)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
+ * Verify password against stored SHA-256 hash.
+ * Returns true and persists auth token on success.
+ */
+export async function login(password: string): Promise<boolean> {
+  const expectedHash =
+    process.env.NEXT_PUBLIC_PASSWORD_HASH ??
+    '3e138a3690f57fbed73cf277da807a9058ba6a37711c3f2c0ba084dfe400e941'
+  const inputHash = await sha256(password)
+
+  if (inputHash === expectedHash) {
     try {
-      localStorage.setItem(TOKEN_KEY, TOKEN_VALUE)
-    } catch {}
+      sessionStorage.setItem(TOKEN_KEY, TOKEN_VALUE)
+    } catch {
+      /* SSR or quota */
+    }
     return true
   }
   return false
@@ -14,13 +42,15 @@ export function login(password: string): boolean {
 
 export function logout(): void {
   try {
-    localStorage.removeItem(TOKEN_KEY)
-  } catch {}
+    sessionStorage.removeItem(TOKEN_KEY)
+  } catch {
+    /* SSR */
+  }
 }
 
 export function isAuthenticated(): boolean {
   try {
-    return localStorage.getItem(TOKEN_KEY) === TOKEN_VALUE
+    return sessionStorage.getItem(TOKEN_KEY) === TOKEN_VALUE
   } catch {
     return false
   }

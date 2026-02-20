@@ -11,20 +11,19 @@ export default function LoginPage() {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(false)
-    setTimeout(() => {
-      const ok = login(password)
-      if (ok) {
-        router.push('/mein-bereich')
-      } else {
-        setError(true)
-        setLoading(false)
-        setPassword('')
-      }
-    }, 400)
+    await new Promise((r) => setTimeout(r, 400))
+    const ok = await login(password)
+    if (ok) {
+      router.push('/mein-bereich')
+    } else {
+      setError(true)
+      setLoading(false)
+      setPassword('')
+    }
   }
 
   return (
@@ -35,7 +34,7 @@ export default function LoginPage() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+      fontFamily: "var(--font-inter, 'Inter'), ui-sans-serif, system-ui, sans-serif",
       WebkitFontSmoothing: 'antialiased',
       padding: '0 20px',
     }}>

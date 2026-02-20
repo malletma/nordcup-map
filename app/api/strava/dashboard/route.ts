@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { fetchAthlete, fetchStats, fetchActivities } from '@/lib/strava-server'
 
-export const dynamic = 'force-static'
-export const revalidate = false
+/**
+ * On Vercel this runs as a serverless function with ISR (revalidate: 3600 = 1h).
+ * On GitHub Pages, this route is unused — data comes from strava-data.json.
+ *
+ * `dynamic = 'error'` combined with revalidate lets Next.js cache the result
+ * and rebuild it periodically on Vercel without hitting Strava every request.
+ */
+export const revalidate = 3600 // seconds — re-fetch once per hour on Vercel
 
 // Key sport types for mapping
 const SPORT_MAP: Record<string, string> = {

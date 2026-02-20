@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
   schedule:
-    # Refresh Strava data daily at 06:00 UTC (08:00 CET)
-    - cron: '0 6 * * *'
+    # Refresh Strava data every hour
+    - cron: '0 * * * *'
   workflow_dispatch:
+
+# Prevent concurrent deploys from overlapping
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -21,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -38,7 +43,7 @@ jobs:
         env:
           NEXT_STATIC_EXPORT: 'true'
           NEXT_PUBLIC_DATA_URL: '/nordcup-map/strava-data.json'
-          NEXT_PUBLIC_SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          NEXT_PUBLIC_PASSWORD_HASH: ${{ secrets.PASSWORD_HASH }}
         run: npm run build
 
       - name: Add .nojekyll

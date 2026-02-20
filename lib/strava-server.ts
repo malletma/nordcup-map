@@ -40,7 +40,7 @@ async function stravaGet<T>(path: string, params: Record<string, string | number
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
-    next: { revalidate: 60 }, // Cache for 60s
+    cache: 'no-store', // Let Next.js ISR (revalidate) handle caching at route level
   })
   if (!res.ok) throw new Error(`Strava API ${path} failed: ${res.status}`)
   return res.json()
