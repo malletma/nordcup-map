@@ -161,15 +161,60 @@ const LS_KEY = 'bike-extras-v2'
 const LS_KEY_OLD = 'bike-extras'
 interface BikeExtra { photo?: string; nickname?: string; frameMaterial?: string; frameSize?: string; groupset?: string; drivetrain?: string; brakes?: string; wheelset?: string; tireSize?: string; weightKg?: string; purchaseYear?: string; priceEur?: string; useCase?: string[]; notes?: string }
 
+/* ─── Hardcoded bike defaults (always shown even on fresh load) ───────── */
+const DEFAULT_EXTRAS: Record<string, BikeExtra> = {
+  'b15747194': { // Factor Ostro VAM
+    nickname: 'Ostro VAM', frameMaterial: 'Carbon', frameSize: '56',
+    groupset: 'Shimano Ultegra Di2 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
+    wheelset: 'Aerycs Aero CS DT-Swiss 240', tireSize: 'Pirelli P-Zero 30mm',
+    weightKg: '7.4', purchaseYear: '2024', priceEur: '10000',
+    useCase: ['Road', 'Race'], notes: 'Powermeter',
+  },
+  'b17314789': { // Factor O2 VAM
+    nickname: 'O2 VAM', frameMaterial: 'Carbon', frameSize: '56',
+    groupset: 'SRAM Force E1 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
+    wheelset: 'Black Inc Thirty', tireSize: 'Pirelli P-Zero 30mm',
+    weightKg: '7.1', purchaseYear: '2025', priceEur: '11000',
+    useCase: ['Road', 'Race'], notes: 'Powermeter',
+  },
+  'b15747190': { // Colnago G4-X
+    nickname: 'G4-X', frameMaterial: 'Carbon', frameSize: '56',
+    groupset: 'Shimano GRX 825 12-fach', drivetrain: '2x', brakes: 'Disc Hyd.',
+    wheelset: 'Campagnolo Shamal 40', tireSize: 'Pirelli P-Zero 45mm',
+    weightKg: '7.8', purchaseYear: '2025', priceEur: '8000',
+    useCase: ['Gravel'], notes: 'Powermeter',
+  },
+  'b17300742': { // FARA GR4
+    nickname: 'GR-4', frameMaterial: 'Carbon', frameSize: '56',
+    groupset: 'SRAM Force E1 XPLR 13-fach', drivetrain: '1x', brakes: 'Disc Hyd.',
+    wheelset: 'Zipp 303 XPLR', tireSize: 'Schwalbe Thunder Burt 57mm',
+    weightKg: '7.8', purchaseYear: '2026', priceEur: '8900',
+    useCase: ['Gravel'], notes: 'Powermeter',
+  },
+}
+
 function loadExtras(): Record<string, BikeExtra> {
   try {
+    let stored: Record<string, BikeExtra> = {}
     const v2 = localStorage.getItem(LS_KEY)
-    if (v2) return JSON.parse(v2)
-    // migrate from old key
-    const v1 = localStorage.getItem(LS_KEY_OLD)
-    if (v1) { const parsed = JSON.parse(v1); localStorage.setItem(LS_KEY, v1); return parsed }
-    return {}
-  } catch { return {} }
+    if (v2) { stored = JSON.parse(v2) }
+    else {
+      // migrate from old key
+      const v1 = localStorage.getItem(LS_KEY_OLD)
+      if (v1) { stored = JSON.parse(v1); localStorage.setItem(LS_KEY, v1) }
+    }
+    // Merge: defaults as base, stored values override per-field
+    const merged: Record<string, BikeExtra> = {}
+    for (const [id, def] of Object.entries(DEFAULT_EXTRAS)) {
+      const fromStorage = stored[id] ?? {}
+      merged[id] = { ...def, ...Object.fromEntries(Object.entries(fromStorage).filter(([, v]) => v !== undefined)) }
+    }
+    // Include any stored bikes not in defaults (e.g. trainer bike)
+    for (const [id, extra] of Object.entries(stored)) {
+      if (!merged[id]) merged[id] = extra
+    }
+    return merged
+  } catch { return { ...DEFAULT_EXTRAS } }
 }
 
 function saveExtras(d: Record<string, BikeExtra>): boolean {
@@ -920,10 +965,20 @@ export default function MeinBereichPage() {
 
         {/* ── TABS ────────────────────────────────────────────────── */}
         <div style={{ background: theme.bg2, borderBottom: `1px solid ${theme.border}`, position: 'sticky', top: 54, zIndex: 90 }}>
-          <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px', display: 'flex', gap: 0 }}>
+          <div style={{ maxWidth: 1400, margin: '0 auto', padding: '8px 20px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {([['stats', `📊 ${T('dashboard')}`], ['training', `🏋️ ${T('training')}`], ['garage', `🚲 ${T('garage')}`]] as [typeof activeTab, string][]).map(([tab, label]) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '14px 20px', background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === tab ? theme.accent : 'transparent'}`, color: activeTab === tab ? theme.accent : theme.muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>{label}</button>
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                padding: '9px 20px',
+                background: activeTab === tab ? theme.accent : (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'),
+                border: `1px solid ${activeTab === tab ? 'transparent' : theme.border}`,
+                borderRadius: 12,
+                color: activeTab === tab ? (dark ? '#020c1b' : '#fff') : theme.text,
+                fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all .2s',
+                boxShadow: activeTab === tab ? `0 4px 16px ${theme.accent}50` : 'none',
+              }}>{label}</button>
             ))}
+            <Link href="/rennen" style={{ marginLeft: 'auto', padding: '9px 18px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: 12, color: theme.muted, fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>🏁 Rennen</Link>
           </div>
         </div>
 
@@ -1049,6 +1104,78 @@ export default function MeinBereichPage() {
                   </div>
                 </GlassCard>
               </div>
+
+              {/* ── Trend Analysis ─────────────────────────────────── */}
+              <GlassCard style={{ padding: 28 }}>
+                <SectionLabel tag="Trend" title="Trainingsform &amp; Belastungstrend" sub="Rollender 4-Wochen-Schnitt (lila) über wöchentliche Belastung (blau)" />
+                {(() => {
+                  const recent = weeklyLoad.slice(-16)
+                  const maxKm = Math.max(...recent.map(w => w.km), 1)
+                  const rolling = recent.map((_, i, arr) => {
+                    const sl = arr.slice(Math.max(0, i - 3), i + 1).filter(w => w.km > 0)
+                    return sl.length > 0 ? sl.reduce((s, w) => s + w.km, 0) / sl.length : 0
+                  })
+                  const maxAll = Math.max(maxKm, Math.max(...rolling), 1)
+                  const last4Avg = weeklyLoad.slice(-4).filter(w => w.km > 0).reduce((s, w, _, a) => s + w.km / a.length, 0)
+                  const prev4Avg = weeklyLoad.slice(-8, -4).filter(w => w.km > 0).reduce((s, w, _, a) => s + w.km / a.length, 0)
+                  const trendPct = prev4Avg > 0 ? Math.round(((last4Avg - prev4Avg) / prev4Avg) * 100) : 0
+                  const W = 460, H = 100
+                  const barW = Math.max((W / recent.length) - 3, 2)
+                  const linePoints = rolling.map((v, i) => {
+                    const x = (i / Math.max(recent.length - 1, 1)) * W
+                    const y = H - (v / maxAll) * H
+                    return `${x.toFixed(1)},${y.toFixed(1)}`
+                  }).join(' ')
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Ø Letzte 4 Wochen', value: `${Math.round(last4Avg)} km/W`, color: theme.accent },
+                          { label: 'Trend vs. Vorperiode', value: `${trendPct > 0 ? '+' : ''}${trendPct}%`, color: trendPct >= 5 ? theme.green : trendPct <= -5 ? theme.red : theme.yellow },
+                          { label: 'Beste Woche', value: `${Math.max(...weeklyLoad.map(w => w.km))} km`, color: theme.yellow },
+                          { label: 'Wochen aktiv', value: `${weeklyLoad.filter(w => w.km > 0).length}`, color: theme.purple },
+                        ].map(s => (
+                          <div key={s.label} style={{ background: s.color + '18', border: `1px solid ${s.color}35`, borderRadius: 10, padding: '10px 16px', flex: 1, minWidth: 120 }}>
+                            <div style={{ fontSize: 9, color: theme.muted, fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '1px' }}>{s.label}</div>
+                            <div style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <svg viewBox={`0 0 ${W} ${H + 24}`} style={{ width: '100%', minWidth: 320, height: 'auto', display: 'block' }}>
+                          {/* Grid lines */}
+                          {[0.25, 0.5, 0.75, 1].map(f => (
+                            <line key={f} x1={0} y1={H - f * H} x2={W} y2={H - f * H} stroke={dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} strokeWidth={1} />
+                          ))}
+                          {/* Bars */}
+                          {recent.map((w, i) => {
+                            const bh = (w.km / maxAll) * H
+                            const x = (i / recent.length) * W + 1
+                            const isBest = w.km === Math.max(...recent.map(x => x.km)) && w.km > 0
+                            const isCur = i === recent.length - 1
+                            const col = isBest ? theme.yellow : isCur ? theme.accent : theme.accent + '50'
+                            return bh > 0 ? <rect key={i} x={x} y={H - bh} width={barW} height={bh} rx={3} fill={col} /> : null
+                          })}
+                          {/* Rolling avg line */}
+                          {rolling.some(v => v > 0) && (
+                            <>
+                              <polyline points={linePoints} fill="none" stroke={theme.purple} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                              {rolling.map((v, i) => v > 0 ? (
+                                <circle key={i} cx={(i / Math.max(recent.length - 1, 1)) * W} cy={H - (v / maxAll) * H} r={3} fill={theme.purple} />
+                              ) : null)}
+                            </>
+                          )}
+                          {/* X labels */}
+                          {recent.map((w, i) => i % 4 === 0 || i === recent.length - 1 ? (
+                            <text key={i} x={(i / recent.length) * W + barW / 2} y={H + 16} textAnchor="middle" fill={i === recent.length - 1 ? theme.accent : theme.muted} fontSize={8} fontWeight={i === recent.length - 1 ? '800' : '400'}>{w.label}</text>
+                          ) : null)}
+                          <text x={W} y={H + 16} textAnchor="end" fill={theme.purple} fontSize={8} fontWeight="700">── Ø 4W</text>
+                        </svg>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </GlassCard>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <GlassCard style={{ padding: 28 }}>
@@ -1181,7 +1308,8 @@ export default function MeinBereichPage() {
             {lastUpdated && `${T('stand')}: ${lastUpdated.toLocaleTimeString('de-DE')} · `}
             {data.totalActivitiesLoaded} {T('activities')} · {' '}
             <Link href="/" style={{ color: theme.muted }}>{T('map')}</Link>{' · '}
-            <Link href="/viking-bike-challenge" style={{ color: theme.muted }}>{T('vikingBike')}</Link>
+            <Link href="/viking-bike-challenge" style={{ color: theme.muted }}>{T('vikingBike')}</Link>{' · '}
+            <Link href="/rennen" style={{ color: theme.muted }}>🏁 Rennen</Link>
           </div>
         </footer>
       </div>
