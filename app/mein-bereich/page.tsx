@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, createContext, useContext } f
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { isAuthenticated, logout } from '@/lib/auth'
+import { isEncrypted, decryptPayload, getDecryptionKey } from '@/lib/crypto'
 
 /* ═══════════════════════════════════════════════════════════════════════
    i18n – Deutsch / English
@@ -55,6 +56,53 @@ const dict = {
     bikeStatsTitle: 'Bike-Statistiken', distChart: 'Distanz pro Bike',
     rennen: 'Rennen',
     saved: '✓ Gespeichert!', saveFail: '⚠ Speicher voll – Foto zu groß',
+    // Races
+    raceDate: 'Datum', racePast: '🏁 Rennen hat stattgefunden',
+    cdDays: 'Tage', cdHrs: 'Std', cdMin: 'Min', cdSec: 'Sek',
+    untilStart: 'bis zum Start in', raceDistance: 'Distanz', raceElevation: 'Höhenmeter',
+    raceParticipants: 'Teilnehmer', raceStart: 'Start', raceHighlights: 'Highlights',
+    raceElevProfile: 'Höhenprofil (schematisch)', raceWebsite: '🔗 Zur offiziellen Website →',
+    raceAreaMap: 'Streckengebiet', raceMapTitle: 'Karte',
+    seasonOverview: 'Saison-Übersicht', seasonTitle: 'Deine 3 Highlight-Rennen 2026',
+    seasonSubtitle: 'Wenn du alle drei absolvierst:', seasonCompDist: 'km Wettkampf-Distanz',
+    totalKmRace: 'Gesamt-km', totalHm: 'Gesamt Hm', racesLabel: 'Rennen', periodLabel: 'Zeitraum',
+    daysUnit: 'Tage', eventsUnit: 'Events',
+    calendarLabel: 'Kalender', raceSeason: 'Rennsaison 2026', hmUnit: 'Hm',
+    // Trend
+    trendTag: 'Trend', trendTitle: 'Trainingsform & Belastungstrend',
+    trendSub: 'Rollender 4-Wochen-Schnitt (lila) über wöchentliche Belastung (blau)',
+    trendAvg4w: 'Ø Letzte 4 Wochen', trendVsPrev: 'Trend vs. Vorperiode',
+    trendBestWeek: 'Beste Woche', trendActiveWeeks: 'Wochen aktiv',
+    trendLine4w: '── Ø 4W',
+    // Error messages
+    sessionExpired: 'Sitzung abgelaufen — bitte erneut einloggen',
+    decryptFailed: 'Entschlüsselung fehlgeschlagen',
+    // Race descriptions & highlights (i18n)
+    vatternDesc: 'Eines der größten Radrennen der Welt – 315 km rund um den See Vättern in einer Nacht-Etappe. Teil der „En Svensk Klassiker" Serie.',
+    vatternHL1: 'Nacht-Start 19:30 Uhr', vatternHL2: '23.000 Teilnehmer', vatternHL3: 'En Svensk Klassiker', vatternHL4: '315 km am Stück', vatternHL5: 'Überquerung von 4 Provinzen',
+    letapeDesc: "Der offizielle L'Étape Denmark – Teil der legendären Tour de France L'Étape-Serie. 300 km entlang des Hærvejen-Pfads von Flensburg nach Viborg.",
+    letapeHL1: "L'Étape by Tour de France", letapeHL2: 'Historischer Hærvejen-Weg', letapeHL3: '7.500 Teilnehmer 2025', letapeHL4: 'Grenzüberschreitend DE→DK', letapeHL5: '2.500 Hm Gesamtsteigung',
+    msrDesc: 'Die Mecklenburger Seen Runde 300 führt durch die traumhafte Seenlandschaft Norddeutschlands. Flache bis leicht hügelige Strecke.',
+    msrHL1: 'Einmalige Seenlandschaft', msrHL2: 'Flaches Nord-Deutschland', msrHL3: 'GPX-Track verfügbar', msrHL4: 'Einzel oder Gruppe', msrHL5: '300 km Norddeutschland',
+    vatternSub: '315 km rund um den Vätternsee', letapeSub: '300 km – Flensburg → Viborg',
+    msrSub: '300 km durch die Mecklenburger Seenplatte',
+    locVattern: 'Motala, Schweden', locLetape: 'Flensburg → Viborg', locMsr: 'Mecklenburgische Seenplatte, DE',
+    countrySweden: 'Schweden', countryDEDK: 'Deutschland / Dänemark', countryDE: 'Deutschland',
+    startVattern: '19:30 Uhr', startLetape: '06:30 Uhr', startMsr: '~08:00 Uhr (geplant)',
+    participantsVattern: '~23.000', participantsLetape: '~7.500', participantsMsr: 'Individuell',
+    // Modal placeholders
+    phFrameSize: 'z.B. 54cm', phGroupset: 'z.B. Shimano Dura-Ace',
+    // Frame materials
+    matCarbon: 'Carbon', matAlu: 'Alu', matSteel: 'Stahl', matTitanium: 'Titan',
+    // Login page
+    loginTitle: 'Mein Bereich', loginSub: 'Persönliches Radsport-Dashboard',
+    loginLabel: 'Passwort', loginError: 'Falsches Passwort. Bitte nochmal versuchen.',
+    loginBtn: 'Einloggen →', loginLoading: 'Einloggen …', loginLocked: 'Gesperrt ⏳',
+    loginLockMsg: 'Zu viele Versuche. Bitte 60 Sekunden warten.',
+    loginFooter: 'Privater Bereich — nur für den Besitzer dieser Seite.',
+    loginBackLink: 'Zur Karte',
+    // Day names
+    dayMo: 'Mo', dayTu: 'Di', dayWe: 'Mi', dayTh: 'Do', dayFr: 'Fr', daySa: 'Sa', daySu: 'So',
   },
   en: {
     map: 'Map', logout: 'Logout', loading: 'LOADING STRAVA DATA…', retry: 'Retry',
@@ -102,6 +150,53 @@ const dict = {
     bikeStatsTitle: 'Bike Statistics', distChart: 'Distance per Bike',
     rennen: 'Races',
     saved: '✓ Saved!', saveFail: '⚠ Storage full – photo too large',
+    // Races
+    raceDate: 'Date', racePast: '🏁 Race has taken place',
+    cdDays: 'Days', cdHrs: 'Hrs', cdMin: 'Min', cdSec: 'Sec',
+    untilStart: 'until start in', raceDistance: 'Distance', raceElevation: 'Elevation',
+    raceParticipants: 'Participants', raceStart: 'Start', raceHighlights: 'Highlights',
+    raceElevProfile: 'Elevation Profile (schematic)', raceWebsite: '🔗 Official Website →',
+    raceAreaMap: 'Race Area', raceMapTitle: 'Map',
+    seasonOverview: 'Season Overview', seasonTitle: 'Your 3 Highlight Races 2026',
+    seasonSubtitle: 'If you complete all three:', seasonCompDist: 'km race distance',
+    totalKmRace: 'Total km', totalHm: 'Total Elev.', racesLabel: 'Races', periodLabel: 'Period',
+    daysUnit: 'Days', eventsUnit: 'Events',
+    calendarLabel: 'Calendar', raceSeason: 'Race Season 2026', hmUnit: 'Elev.',
+    // Trend
+    trendTag: 'Trend', trendTitle: 'Training Form & Load Trend',
+    trendSub: 'Rolling 4-week average (purple) over weekly load (blue)',
+    trendAvg4w: 'Ø Last 4 Weeks', trendVsPrev: 'Trend vs. Previous',
+    trendBestWeek: 'Best Week', trendActiveWeeks: 'Weeks Active',
+    trendLine4w: '── Ø 4W',
+    // Error messages
+    sessionExpired: 'Session expired — please log in again',
+    decryptFailed: 'Decryption failed',
+    // Race descriptions & highlights (i18n)
+    vatternDesc: 'One of the world\'s largest cycling events – 315 km around Lake Vättern in a night stage. Part of the "En Svensk Klassiker" series.',
+    vatternHL1: 'Night start 7:30 PM', vatternHL2: '23,000 participants', vatternHL3: 'En Svensk Klassiker', vatternHL4: '315 km non-stop', vatternHL5: 'Crossing 4 provinces',
+    letapeDesc: "The official L'Étape Denmark – part of the legendary Tour de France L'Étape series. 300 km along the Hærvejen trail from Flensburg to Viborg.",
+    letapeHL1: "L'Étape by Tour de France", letapeHL2: 'Historic Hærvejen Trail', letapeHL3: '7,500 participants 2025', letapeHL4: 'Cross-border DE→DK', letapeHL5: '2,500 m total climbing',
+    msrDesc: 'The Mecklenburger Seen Runde 300 passes through the stunning lake district of Northern Germany. Flat to gently rolling terrain.',
+    msrHL1: 'Unique lake district', msrHL2: 'Flat Northern Germany', msrHL3: 'GPX track available', msrHL4: 'Solo or group', msrHL5: '300 km Northern Germany',
+    vatternSub: '315 km around Lake Vättern', letapeSub: '300 km – Flensburg → Viborg',
+    msrSub: '300 km through the Mecklenburg Lake District',
+    locVattern: 'Motala, Sweden', locLetape: 'Flensburg → Viborg', locMsr: 'Mecklenburg Lake District, DE',
+    countrySweden: 'Sweden', countryDEDK: 'Germany / Denmark', countryDE: 'Germany',
+    startVattern: '7:30 PM', startLetape: '6:30 AM', startMsr: '~8:00 AM (planned)',
+    participantsVattern: '~23,000', participantsLetape: '~7,500', participantsMsr: 'Individual',
+    // Modal placeholders
+    phFrameSize: 'e.g. 54cm', phGroupset: 'e.g. Shimano Dura-Ace',
+    // Frame materials
+    matCarbon: 'Carbon', matAlu: 'Alloy', matSteel: 'Steel', matTitanium: 'Titanium',
+    // Login page
+    loginTitle: 'My Dashboard', loginSub: 'Personal Cycling Dashboard',
+    loginLabel: 'Password', loginError: 'Wrong password. Please try again.',
+    loginBtn: 'Log in →', loginLoading: 'Logging in …', loginLocked: 'Locked ⏳',
+    loginLockMsg: 'Too many attempts. Please wait 60 seconds.',
+    loginFooter: 'Private area — only for the owner of this page.',
+    loginBackLink: 'Back to Map',
+    // Day names
+    dayMo: 'Mon', dayTu: 'Tue', dayWe: 'Wed', dayTh: 'Thu', dayFr: 'Fri', daySa: 'Sat', daySu: 'Sun',
   },
 } as const
 type Lang = keyof typeof dict
@@ -268,9 +363,20 @@ function useCountUp(target: number, duration = 1800, delay = 0): number {
 const SPORT_COLORS: Record<string, string> = { Ride: '#38bdf8', GravelRide: '#a78bfa', VirtualRide: '#fbbf24', MountainBikeRide: '#34d399', EBikeRide: '#2dd4bf' }
 const SPORT_ICON: Record<string, string> = { Ride: '🚴', GravelRide: '🪨', VirtualRide: '⚡', MountainBikeRide: '🏔️', EBikeRide: '🔋', Run: '🏃', Walk: '🚶' }
 const BIKE_COLORS = ['#38bdf8', '#a78bfa', '#fbbf24', '#34d399', '#2dd4bf', '#f472b6']
-function fmt(n: number, dec = 0) { return n.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec }) }
+let _locale = 'de-DE'
+function fmt(n: number, dec = 0) { return n.toLocaleString(_locale, { minimumFractionDigits: dec, maximumFractionDigits: dec }) }
 function durStr(min: number) { const h = Math.floor(min / 60), m = min % 60; return h > 0 ? `${h}h${m > 0 ? ' ' + m + 'min' : ''}` : `${m}min` }
-function dateDE(iso: string) { return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }) }
+function dateFmt(iso: string) { return new Date(iso).toLocaleDateString(_locale, { day: '2-digit', month: 'short' }) }
+
+const RACE_I18N: Record<string, { sub: TKey; loc: TKey; country: TKey; start: TKey; part: TKey; desc: TKey; hl: TKey[] }> = {
+  vatternrundan: { sub: 'vatternSub', loc: 'locVattern', country: 'countrySweden', start: 'startVattern', part: 'participantsVattern', desc: 'vatternDesc', hl: ['vatternHL1','vatternHL2','vatternHL3','vatternHL4','vatternHL5'] },
+  'letape-dk': { sub: 'letapeSub', loc: 'locLetape', country: 'countryDEDK', start: 'startLetape', part: 'participantsLetape', desc: 'letapeDesc', hl: ['letapeHL1','letapeHL2','letapeHL3','letapeHL4','letapeHL5'] },
+  msr300: { sub: 'msrSub', loc: 'locMsr', country: 'countryDE', start: 'startMsr', part: 'participantsMsr', desc: 'msrDesc', hl: ['msrHL1','msrHL2','msrHL3','msrHL4','msrHL5'] },
+}
+function translateRace(race: Race, T: (k: TKey) => string): Race {
+  const m = RACE_I18N[race.id]; if (!m) return race
+  return { ...race, subtitle: T(m.sub), location: T(m.loc), country: T(m.country), startTime: T(m.start), participantCount: T(m.part), description: T(m.desc), highlights: m.hl.map(k => T(k)) }
+}
 
 /* ─── Global CSS ─────────────────────────────────────────────────────── */
 function buildCSS(t: Theme) { return `
@@ -373,8 +479,8 @@ function HeatmapGrid({ heatmap }: { heatmap: Record<string, number> }) {
   }
 
   const monthLabels: { label: string; col: number }[] = []
-  weeks.forEach((w, i) => { const d = new Date(w[0].date); if (d.getDate() <= 7) monthLabels.push({ label: d.toLocaleDateString('de-DE', { month: 'short' }), col: i }) })
-  const DAYS = ['Mo', '', 'Mi', '', 'Fr', '', 'So']
+  weeks.forEach((w, i) => { const d = new Date(w[0].date); if (d.getDate() <= 7) monthLabels.push({ label: d.toLocaleDateString(_locale, { month: 'short' }), col: i }) })
+  const DAYS = [T('dayMo'), '', T('dayWe'), '', T('dayFr'), '', T('daySu')]
   const total365 = Object.values(heatmap).filter(v => v > 0).length
   const total365km = Math.round(Object.values(heatmap).reduce((s, v) => s + Math.max(v, 0), 0))
 
@@ -414,7 +520,8 @@ function HeatmapGrid({ heatmap }: { heatmap: Record<string, number> }) {
 /* ─── Day radar ──────────────────────────────────────────────────────── */
 function DayRadar({ heatmap }: { heatmap: Record<string, number> }) {
   const { t, dark } = useT()
-  const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  const { T: TT } = useT()
+  const days = [TT('dayMo'), TT('dayTu'), TT('dayWe'), TT('dayTh'), TT('dayFr'), TT('daySa'), TT('daySu')]
   const stats = Array(7).fill(0).map(() => ({ count: 0, km: 0 }))
   Object.entries(heatmap).forEach(([date, km]) => { if (km > 0) { let d = new Date(date).getDay(); d = d === 0 ? 6 : d - 1; stats[d].count++; stats[d].km += km } })
   const maxKm = Math.max(...stats.map(s => s.km), 1)
@@ -722,10 +829,10 @@ function BikeModal({ bikeId, bikeName, bikeKm, bColor, init, onSave, onClose }: 
           </div>
           <div><label style={L()}>🏷 {T('nickname')}</label><input style={I()} placeholder={bikeName} value={draft.nickname ?? ''} onChange={e => set('nickname', e.target.value)} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div><label style={L()}>🏗 {T('frameMat')}</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{['Carbon', 'Alu', 'Stahl', 'Titan'].map(o => <button key={o} style={CH(draft.frameMaterial === o)} onClick={() => set('frameMaterial', draft.frameMaterial === o ? undefined : o)}>{o}</button>)}</div></div>
-            <div><label style={L()}>📐 {T('frameSize')}</label><input style={I()} placeholder="z.B. 54cm" value={draft.frameSize ?? ''} onChange={e => set('frameSize', e.target.value)} /></div>
+            <div><label style={L()}>🏗 {T('frameMat')}</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{([['Carbon','matCarbon'],['Alu','matAlu'],['Stahl','matSteel'],['Titan','matTitanium']] as [string, TKey][]).map(([val,tk]) => <button key={val} style={CH(draft.frameMaterial === val)} onClick={() => set('frameMaterial', draft.frameMaterial === val ? undefined : val)}>{T(tk)}</button>)}</div></div>
+            <div><label style={L()}>📐 {T('frameSize')}</label><input style={I()} placeholder={T('phFrameSize')} value={draft.frameSize ?? ''} onChange={e => set('frameSize', e.target.value)} /></div>
           </div>
-          <div><label style={L()}>⚙️ {T('groupset')}</label><input style={I()} placeholder="z.B. Shimano Dura-Ace" value={draft.groupset ?? ''} onChange={e => set('groupset', e.target.value)} /></div>
+          <div><label style={L()}>⚙️ {T('groupset')}</label><input style={I()} placeholder={T('phGroupset')} value={draft.groupset ?? ''} onChange={e => set('groupset', e.target.value)} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div><label style={L()}>🔧 {T('drivetrain')}</label><div style={{ display: 'flex', gap: 5 }}>{['1x', '2x'].map(o => <button key={o} style={CH(draft.drivetrain === o, t.purple)} onClick={() => set('drivetrain', draft.drivetrain === o ? undefined : o)}>{o}</button>)}</div></div>
             <div><label style={L()}>🛑 {T('brakes')}</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{['Disc Hyd.', 'Disc Mech.', 'Rim'].map(o => <button key={o} style={CH(draft.brakes === o, t.orange)} onClick={() => set('brakes', draft.brakes === o ? undefined : o)}>{o}</button>)}</div></div>
@@ -865,11 +972,12 @@ function RaceCountdownBlock({ label, value, color }: { label: string; value: num
 }
 
 function RaceCard({ race }: { race: Race }) {
-  const { t, dark } = useT()
+  const { t, T, dark } = useT()
   const cd = useCountdown(race.date)
   const [mapVisible, setMapVisible] = useState(false)
   useEffect(() => { const tm = setTimeout(() => setMapVisible(true), 300); return () => clearTimeout(tm) }, [])
-  const raceDate = new Date(race.date).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
+  const raceT = translateRace(race, T)
+  const raceDate = new Date(race.date).toLocaleDateString(_locale, { day: '2-digit', month: 'long', year: 'numeric' })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, animation: 'slideUp .5s ease both' }}>
@@ -879,16 +987,16 @@ function RaceCard({ race }: { race: Race }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: race.color + '25', color: race.color, border: `1px solid ${race.color}40`, letterSpacing: '1px', textTransform: 'uppercase' }}>{race.flag} {race.country}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: race.color + '25', color: race.color, border: `1px solid ${race.color}40`, letterSpacing: '1px', textTransform: 'uppercase' }}>{race.flag} {raceT.country}</span>
               {race.series && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: t.purple + '20', color: t.purple, border: `1px solid ${t.purple}30` }}>{race.series}</span>}
             </div>
             <h2 style={{ margin: 0, fontSize: 'clamp(1.4rem,3vw,2rem)', fontWeight: 900, color: t.white, lineHeight: 1.1 }}>{race.name}</h2>
-            <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>{race.subtitle}</div>
+            <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>{raceT.subtitle}</div>
           </div>
           <div style={{ background: race.color + '15', border: `1px solid ${race.color}30`, borderRadius: 14, padding: '12px 18px', textAlign: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 10, color: t.muted, fontWeight: 700, marginBottom: 4 }}>📅 Datum</div>
+            <div style={{ fontSize: 10, color: t.muted, fontWeight: 700, marginBottom: 4 }}>📅 {T('raceDate')}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: race.color }}>{raceDate}</div>
-            <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>⏰ {race.startTime}</div>
+            <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>⏰ {raceT.startTime}</div>
           </div>
         </div>
       </div>
@@ -898,17 +1006,17 @@ function RaceCard({ race }: { race: Race }) {
           {/* Countdown */}
           <div style={{ background: dark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)', borderRadius: 16, padding: '18px 24px', marginBottom: 24, display: 'flex', gap: 0, alignItems: 'center', justifyContent: 'center', border: `1px solid ${race.color}20` }}>
             {cd.past
-              ? <div style={{ fontSize: 18, fontWeight: 900, color: race.color }}>🏁 Rennen hat stattgefunden</div>
+              ? <div style={{ fontSize: 18, fontWeight: 900, color: race.color }}>{T('racePast')}</div>
               : (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <RaceCountdownBlock label="Tage" value={cd.d} color={race.color} />
+                  <RaceCountdownBlock label={T('cdDays')} value={cd.d} color={race.color} />
                   <div style={{ fontSize: 32, fontWeight: 900, color: race.color + '60', marginBottom: 18, padding: '0 4px' }}>:</div>
-                  <RaceCountdownBlock label="Std" value={cd.h} color={race.color} />
+                  <RaceCountdownBlock label={T('cdHrs')} value={cd.h} color={race.color} />
                   <div style={{ fontSize: 32, fontWeight: 900, color: race.color + '60', marginBottom: 18, padding: '0 4px' }}>:</div>
-                  <RaceCountdownBlock label="Min" value={cd.m} color={race.color} />
+                  <RaceCountdownBlock label={T('cdMin')} value={cd.m} color={race.color} />
                   <div style={{ fontSize: 32, fontWeight: 900, color: race.color + '60', marginBottom: 18, padding: '0 4px' }}>:</div>
-                  <RaceCountdownBlock label="Sek" value={cd.s} color={race.color} />
-                  {cd.d > 0 && <div style={{ marginLeft: 16, fontSize: 11, color: t.muted, maxWidth: 100 }}>bis zum Start in {race.location}</div>}
+                  <RaceCountdownBlock label={T('cdSec')} value={cd.s} color={race.color} />
+                  {cd.d > 0 && <div style={{ marginLeft: 16, fontSize: 11, color: t.muted, maxWidth: 100 }}>{T('untilStart')} {raceT.location}</div>}
                 </div>
               )}
           </div>
@@ -918,10 +1026,10 @@ function RaceCard({ race }: { race: Race }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { icon: '📏', label: 'Distanz', value: `${race.distanceKm} km`, col: race.color },
-                  { icon: '⛰️', label: 'Höhenmeter', value: `~${race.elevationM.toLocaleString('de-DE')} m`, col: t.yellow },
-                  { icon: '👥', label: 'Teilnehmer', value: race.participantCount, col: t.purple },
-                  { icon: '📍', label: 'Start', value: race.location.split(',')[0], col: t.teal },
+                  { icon: '📏', label: T('raceDistance'), value: `${race.distanceKm} km`, col: race.color },
+                  { icon: '⛰️', label: T('raceElevation'), value: `~${race.elevationM.toLocaleString(_locale)} m`, col: t.yellow },
+                  { icon: '👥', label: T('raceParticipants'), value: raceT.participantCount, col: t.purple },
+                  { icon: '📍', label: T('raceStart'), value: raceT.location.split(',')[0], col: t.teal },
                 ].map(s => (
                   <div key={s.label} style={{ background: s.col + '12', border: `1px solid ${s.col}25`, borderRadius: 12, padding: '12px 14px' }}>
                     <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
@@ -930,11 +1038,11 @@ function RaceCard({ race }: { race: Race }) {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7 }}>{race.description}</div>
+              <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7 }}>{raceT.description}</div>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>Highlights</div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>{T('raceHighlights')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {race.highlights.map(h => (
+                  {raceT.highlights.map(h => (
                     <div key={h} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: t.text }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: race.color, flexShrink: 0 }} />{h}
                     </div>
@@ -943,7 +1051,7 @@ function RaceCard({ race }: { race: Race }) {
               </div>
               {/* Elevation profile */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>Höhenprofil (schematisch)</div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>{T('raceElevProfile')}</div>
                 <svg viewBox={`0 0 ${race.distanceKm} 100`} style={{ width: '100%', height: 60, display: 'block' }} preserveAspectRatio="none">
                   <polygon points={`0,100 ${race.elevationProfile} ${race.distanceKm},100`} fill={race.color + '25'} />
                   <polyline points={race.elevationProfile} fill="none" stroke={race.color} strokeWidth={2} strokeLinejoin="round" />
@@ -953,14 +1061,14 @@ function RaceCard({ race }: { race: Race }) {
                 </div>
               </div>
               <a href={race.url} target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', padding: '11px 0', background: `linear-gradient(90deg,${race.color},${race.color}cc)`, color: '#fff', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer', textDecoration: 'none', boxShadow: `0 4px 16px ${race.color}40` }}>
-                🔗 Zur offiziellen Website →
+                {T('raceWebsite')}
               </a>
             </div>
             {/* Right: Map */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>Streckengebiet</div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: t.muted, marginBottom: 8 }}>{T('raceAreaMap')}</div>
               <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${race.color}30`, flex: 1, minHeight: 340 }}>
-                {mapVisible && <iframe src={race.mapUrl} style={{ width: '100%', height: '100%', minHeight: 340, border: 'none', display: 'block' }} title={`Karte: ${race.name}`} loading="lazy" />}
+                {mapVisible && <iframe src={race.mapUrl} style={{ width: '100%', height: '100%', minHeight: 340, border: 'none', display: 'block' }} title={`${T('raceMapTitle')}: ${race.name}`} loading="lazy" />}
               </div>
             </div>
           </div>
@@ -971,23 +1079,24 @@ function RaceCard({ race }: { race: Race }) {
 }
 
 function RaceSeasonSummary() {
-  const { t } = useT()
-  const totalKm = RACES.reduce((s, r) => s + r.distanceKm, 0)
-  const totalElev = RACES.reduce((s, r) => s + r.elevationM, 0)
+  const { t, T } = useT()
+  const races = RACES.map(r => translateRace(r, T))
+  const totalKm = races.reduce((s, r) => s + r.distanceKm, 0)
+  const totalElev = races.reduce((s, r) => s + r.elevationM, 0)
   const firstRace = new Date(RACES[0].date)
   const lastRace = new Date(RACES[RACES.length - 1].date)
   const spanDays = Math.round((lastRace.getTime() - firstRace.getTime()) / 86400000)
   return (
     <GlassCard glow={t.accent} style={{ padding: 28 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: t.accent, marginBottom: 6 }}>Saison-Übersicht</div>
-      <h2 style={{ margin: '0 0 4px', fontSize: 'clamp(1.2rem,2.5vw,1.7rem)', fontWeight: 900, color: t.white }}>Deine 3 Highlight-Rennen 2026</h2>
-      <div style={{ fontSize: 13, color: t.muted, marginBottom: 24 }}>Wenn du alle drei absolvierst: {totalKm} km Wettkampf-Distanz</div>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: t.accent, marginBottom: 6 }}>{T('seasonOverview')}</div>
+      <h2 style={{ margin: '0 0 4px', fontSize: 'clamp(1.2rem,2.5vw,1.7rem)', fontWeight: 900, color: t.white }}>{T('seasonTitle')}</h2>
+      <div style={{ fontSize: 13, color: t.muted, marginBottom: 24 }}>{T('seasonSubtitle')} {totalKm} {T('seasonCompDist')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
         {[
-          { label: 'Gesamt-km', value: `${totalKm}`, unit: 'km', col: t.accent },
-          { label: 'Gesamt Hm', value: `~${totalElev.toLocaleString('de-DE')}`, unit: 'm', col: t.yellow },
-          { label: 'Rennen', value: '3', unit: 'Events', col: t.purple },
-          { label: 'Zeitraum', value: `${spanDays}`, unit: 'Tage', col: t.green },
+          { label: T('totalKmRace'), value: `${totalKm}`, unit: 'km', col: t.accent },
+          { label: T('totalHm'), value: `~${totalElev.toLocaleString(_locale)}`, unit: 'm', col: t.yellow },
+          { label: T('racesLabel'), value: '3', unit: T('eventsUnit'), col: t.purple },
+          { label: T('periodLabel'), value: `${spanDays}`, unit: T('daysUnit'), col: t.green },
         ].map(s => (
           <div key={s.label} style={{ background: s.col + '15', border: `1px solid ${s.col}30`, borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontSize: 9, color: t.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 6 }}>{s.label}</div>
@@ -1001,27 +1110,28 @@ function RaceSeasonSummary() {
 }
 
 function RaceTimeline() {
-  const { t, dark } = useT()
+  const { t, T, dark } = useT()
+  const races = RACES.map(r => translateRace(r, T))
   return (
     <GlassCard style={{ padding: 28 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: t.muted, marginBottom: 6 }}>Kalender</div>
-      <h2 style={{ margin: '0 0 24px', fontSize: '1.3rem', fontWeight: 900, color: t.white }}>Rennsaison 2026</h2>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '3px', textTransform: 'uppercase', color: t.muted, marginBottom: 6 }}>{T('calendarLabel')}</div>
+      <h2 style={{ margin: '0 0 24px', fontSize: '1.3rem', fontWeight: 900, color: t.white }}>{T('raceSeason')}</h2>
       <div style={{ position: 'relative', paddingLeft: 28 }}>
         <div style={{ position: 'absolute', left: 8, top: 0, bottom: 0, width: 2, background: `linear-gradient(180deg,${t.accent},${RACES[1].color},${RACES[2].color})`, borderRadius: 1 }} />
-        {RACES.map((r, i) => {
+        {races.map((r, i) => {
           const d = new Date(r.date)
           return (
-            <div key={r.id} style={{ display: 'flex', gap: 16, marginBottom: i < RACES.length - 1 ? 28 : 0, position: 'relative', animation: `slideUp .4s ${i * .1}s both` }}>
+            <div key={r.id} style={{ display: 'flex', gap: 16, marginBottom: i < races.length - 1 ? 28 : 0, position: 'relative', animation: `slideUp .4s ${i * .1}s both` }}>
               <div style={{ position: 'absolute', left: -24, top: 4, width: 14, height: 14, borderRadius: '50%', background: r.color, border: `3px solid ${dark ? '#04080f' : '#f0f4f8'}`, boxShadow: `0 0 12px ${r.color}60`, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: r.color }}>{d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: r.color }}>{d.toLocaleDateString(_locale, { day: '2-digit', month: 'short' })}</span>
                   <span style={{ fontSize: 15, fontWeight: 900, color: t.white }}>{r.flag} {r.name}</span>
                 </div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{r.location} · {r.distanceKm} km · {r.startTime}</div>
               </div>
               <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: r.color }}>~{r.elevationM.toLocaleString('de-DE')} Hm</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: r.color }}>~{r.elevationM.toLocaleString(_locale)} {T('hmUnit')}</div>
               </div>
             </div>
           )
@@ -1053,6 +1163,7 @@ export default function MeinBereichPage() {
 
   const theme = dark ? darkTheme : lightTheme
   const T = (k: TKey) => dict[lang][k]
+  _locale = lang === 'en' ? 'en-US' : 'de-DE'
 
   const DATA_URL = process.env.NEXT_PUBLIC_DATA_URL ?? '/api/strava/dashboard'
 
@@ -1079,9 +1190,24 @@ export default function MeinBereichPage() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(DATA_URL, { cache: 'no-store' })
+      // Build fetch options: for API routes, send auth Bearer token
+      const fetchOpts: RequestInit = { cache: 'no-store' }
+      const dk = getDecryptionKey()
+      if (!DATA_URL.endsWith('.json') && dk) {
+        fetchOpts.headers = { Authorization: `Bearer ${dk}` }
+      }
+      const res = await fetch(DATA_URL, fetchOpts)
+      if (res.status === 401) throw new Error(T('sessionExpired'))
       if (!res.ok) throw new Error(`API ${res.status}`)
-      const json = await res.json()
+      let json = await res.json()
+      // Decrypt AES-256-GCM encrypted Strava data if applicable
+      if (isEncrypted(json)) {
+        try {
+          json = await decryptPayload(json)
+        } catch (e) {
+          throw new Error(e instanceof Error && e.message === 'NO_KEY' ? T('sessionExpired') : T('decryptFailed'))
+        }
+      }
       if (json.error) throw new Error(json.error)
       setData(json); setError(null); setLastUpdated(new Date()); setCountdown(60)
     } catch (e) { setError(e instanceof Error ? e.message : 'Error') } finally { setLoading(false) }
@@ -1294,7 +1420,7 @@ export default function MeinBereichPage() {
                               {act.prCount > 0 && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: theme.yellow + '20', color: theme.yellow, border: `1px solid ${theme.yellow}30` }}>🏆 {act.prCount} PR</span>}
                               {(act.sufferScore ?? 0) > 100 && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: theme.red + '15', color: theme.red }}>🔥 {act.sufferScore}</span>}
                             </div>
-                            <span style={{ fontSize: 11, color: theme.muted, flexShrink: 0 }}>{dateDE(act.date)}</span>
+                            <span style={{ fontSize: 11, color: theme.muted, flexShrink: 0 }}>{dateFmt(act.date)}</span>
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                             {[
@@ -1356,7 +1482,7 @@ export default function MeinBereichPage() {
 
               {/* ── Trend Analysis ─────────────────────────────────── */}
               <GlassCard style={{ padding: 28 }}>
-                <SectionLabel tag="Trend" title="Trainingsform &amp; Belastungstrend" sub="Rollender 4-Wochen-Schnitt (lila) über wöchentliche Belastung (blau)" />
+              <SectionLabel tag={T('trendTag')} title={T('trendTitle')} sub={T('trendSub')} />
                 {(() => {
                   const recent = weeklyLoad.slice(-16)
                   const maxKm = Math.max(...recent.map(w => w.km), 1)
@@ -1379,10 +1505,10 @@ export default function MeinBereichPage() {
                     <div>
                       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                         {[
-                          { label: 'Ø Letzte 4 Wochen', value: `${Math.round(last4Avg)} km/W`, color: theme.accent },
-                          { label: 'Trend vs. Vorperiode', value: `${trendPct > 0 ? '+' : ''}${trendPct}%`, color: trendPct >= 5 ? theme.green : trendPct <= -5 ? theme.red : theme.yellow },
-                          { label: 'Beste Woche', value: `${Math.max(...weeklyLoad.map(w => w.km))} km`, color: theme.yellow },
-                          { label: 'Wochen aktiv', value: `${weeklyLoad.filter(w => w.km > 0).length}`, color: theme.purple },
+                          { label: T('trendAvg4w'), value: `${Math.round(last4Avg)} km/W`, color: theme.accent },
+                          { label: T('trendVsPrev'), value: `${trendPct > 0 ? '+' : ''}${trendPct}%`, color: trendPct >= 5 ? theme.green : trendPct <= -5 ? theme.red : theme.yellow },
+                          { label: T('trendBestWeek'), value: `${Math.max(...weeklyLoad.map(w => w.km))} km`, color: theme.yellow },
+                          { label: T('trendActiveWeeks'), value: `${weeklyLoad.filter(w => w.km > 0).length}`, color: theme.purple },
                         ].map(s => (
                           <div key={s.label} style={{ background: s.color + '18', border: `1px solid ${s.color}35`, borderRadius: 10, padding: '10px 16px', flex: 1, minWidth: 120 }}>
                             <div style={{ fontSize: 9, color: theme.muted, fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '1px' }}>{s.label}</div>
@@ -1418,7 +1544,7 @@ export default function MeinBereichPage() {
                           {recent.map((w, i) => i % 4 === 0 || i === recent.length - 1 ? (
                             <text key={i} x={(i / recent.length) * W + barW / 2} y={H + 16} textAnchor="middle" fill={i === recent.length - 1 ? theme.accent : theme.muted} fontSize={8} fontWeight={i === recent.length - 1 ? '800' : '400'}>{w.label}</text>
                           ) : null)}
-                          <text x={W} y={H + 16} textAnchor="end" fill={theme.purple} fontSize={8} fontWeight="700">── Ø 4W</text>
+                          <text x={W} y={H + 16} textAnchor="end" fill={theme.purple} fontSize={8} fontWeight="700">{T('trendLine4w')}</text>
                         </svg>
                       </div>
                     </div>
@@ -1569,7 +1695,7 @@ export default function MeinBereichPage() {
         {/* ── FOOTER ─────────────────────────────────────────────── */}
         <footer style={{ padding: '20px 0', borderTop: `1px solid ${theme.border}`, textAlign: 'center', color: theme.muted, fontSize: 11, background: theme.bg2 }}>
           <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px' }}>
-            {lastUpdated && `${T('stand')}: ${lastUpdated.toLocaleTimeString('de-DE')} · `}
+            {lastUpdated && `${T('stand')}: ${lastUpdated.toLocaleTimeString(_locale)} · `}
             {data.totalActivitiesLoaded} {T('activities')} · {' '}
             <Link href="/" style={{ color: theme.muted }}>{T('map')}</Link>{' · '}
             <Link href="/viking-bike-challenge" style={{ color: theme.muted }}>{T('vikingBike')}</Link>{' · '}

@@ -4,13 +4,26 @@ import { useEffect, useState } from 'react'
 
 const TARGET = new Date('2026-06-07T07:30:00+02:00')
 
+type CDLang = 'de' | 'en'
+const cdLabels = {
+  de: { days: 'Tage', hrs: 'Std', min: 'Min', sec: 'Sek' },
+  en: { days: 'Days', hrs: 'Hrs', min: 'Min', sec: 'Sec' },
+}
+
 export default function CountdownTimer() {
   const [diff, setDiff] = useState(TARGET.getTime() - Date.now())
+  const [lang, setLang] = useState<CDLang>('de')
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nordcup-prefs')
+      if (saved) { const p = JSON.parse(saved); if (p.lang === 'en' || p.lang === 'de') setLang(p.lang) }
+    } catch { /* ignore */ }
     const id = setInterval(() => setDiff(TARGET.getTime() - Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
+
+  const t = cdLabels[lang]
 
   if (diff <= 0) {
     return (
@@ -27,10 +40,10 @@ export default function CountdownTimer() {
 
   return (
     <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-      <CountItem num={d} label="Tage" />
-      <CountItem num={String(h).padStart(2, '0')} label="Std" />
-      <CountItem num={String(m).padStart(2, '0')} label="Min" />
-      <CountItem num={String(s).padStart(2, '0')} label="Sek" />
+      <CountItem num={d} label={t.days} />
+      <CountItem num={String(h).padStart(2, '0')} label={t.hrs} />
+      <CountItem num={String(m).padStart(2, '0')} label={t.min} />
+      <CountItem num={String(s).padStart(2, '0')} label={t.sec} />
     </div>
   )
 }

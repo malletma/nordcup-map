@@ -5,7 +5,21 @@ import L from 'leaflet'
 import { routes, START } from '@/lib/data/routes'
 import { stations } from '@/lib/data/stations'
 
+type VMLang = 'de' | 'en'
+const vmDict = {
+  de: { filter: 'Filter:', food: 'Verpflegung', startGoal: 'Start / Ziel' },
+  en: { filter: 'Filter:', food: 'Food station', startGoal: 'Start / Finish' },
+}
+
 export default function VikingMap() {
+  const [lang, setLang] = useState<VMLang>('de')
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('nordcup-prefs')
+      if (s) { const p = JSON.parse(s); if (p.lang === 'en' || p.lang === 'de') setLang(p.lang) }
+    } catch { /* ignore */ }
+  }, [])
+  const vt = vmDict[lang]
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const routeLines = useRef<Record<string, L.Polyline>>({})
@@ -37,7 +51,7 @@ export default function VikingMap() {
 
     L.marker(START, { icon: startIcon, zIndexOffset: 1000 })
       .addTo(map)
-      .bindPopup('<b>Start / Ziel</b><br>Dannewerkschule<br>Erikstraße 50, Schleswig')
+      .bindPopup(`<b>${lang === 'en' ? 'Start / Finish' : 'Start / Ziel'}</b><br>Dannewerkschule<br>Erikstraße 50, Schleswig`)
 
     // Route polylines
     routes.forEach((r) => {
@@ -106,7 +120,7 @@ export default function VikingMap() {
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         background: '#131c2e',
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#7a8599', marginRight: 6 }}>Filter:</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#7a8599', marginRight: 6 }}>{vt.filter}</span>
         {routes.map((r) => {
           const active = visibility[r.id]
           return (
@@ -156,7 +170,7 @@ export default function VikingMap() {
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#7a8599' }}>
-          <span style={{ fontSize: 14 }}>🍌</span> Verpflegung
+          <span style={{ fontSize: 14 }}>🍌</span> {vt.food}
         </div>
       </div>
     </div>

@@ -1,14 +1,34 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { fetchAthlete, fetchStats, fetchActivities } from '@/lib/strava-server'
 
 /**
  * On Vercel this runs as a serverless function with ISR (revalidate: 3600 = 1h).
  * On GitHub Pages, this route is unused — data comes from strava-data.json.
  *
+ * Protected by a Bearer-token check: the client must present the password hash.
  * `dynamic = 'error'` combined with revalidate lets Next.js cache the result
  * and rebuild it periodically on Vercel without hitting Strava every request.
  */
-export const revalidate = 3600 // seconds — re-fetch once per hour on Vercel
+// Force dynamic rendering — this route uses request.headers for auth
+// On static export (GitHub Pages) this route is excluded automatically.
+// It only runs on Vercel / Node.js server deployments.
+export const dynamic = 'force-dynamic'
+
+/** Validate that the caller has the correct password hash as Bearer token. */
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return false
+  const token = authHeader.slice(7)
+  const expected = process.env.NEXT_PUBLIC_PASSWORD_HASH || process.env.PASSWORD_HASH
+  if (!expected) return false
+  // Constant-time comparison to prevent timing attacks
+  if (token.length !== expected.length) return false
+  let mismatch = 0
+  for (let i = 0; i < token.length; i++) {
+    mismatch |= token.charCodeAt(i) ^ expected.charCodeAt(i)
+  }
+  return mismatch === 0
+}
 
 // Key sport types for mapping
 const SPORT_MAP: Record<string, string> = {
@@ -23,7 +43,15 @@ const SPORT_MAP: Record<string, string> = {
 
 function toKmh(ms: number) { return ms * 3.6 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Auth guard: require valid Bearer token
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } },
+    )
+  }
+
   try {
     // Parallel fetch: athlete + recent 200 activities
     const [athlete, page1, page2] = await Promise.all([

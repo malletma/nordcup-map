@@ -5,6 +5,36 @@ import Link from 'next/link'
 import L from 'leaflet'
 import { events, serieColors, serieColorKeys, vikingTrack, type Event } from '@/lib/data/events'
 
+// ── i18n ─────────────────────────────────────────────────
+const mapDict = {
+  de: {
+    title: 'Radsport Norddeutschland', myArea: 'Mein Bereich', menu: 'Menü',
+    events2026: 'Veranstaltungen 2026', events: 'Events', series: 'Serien', season: 'Saison',
+    serieFilter: 'Serie / Veranstaltung', typeFilter: 'Typ', regionFilter: 'Region',
+    resetFilters: '✕ Filter zurücksetzen', noResults: 'Keine Veranstaltungen für diesen Filter gefunden.',
+    mapHeader: 'Karte — Norddeutschland', eventDetail: '⚔️ Event-Detailseite →', website: 'Website →',
+  },
+  en: {
+    title: 'Cycling Northern Germany', myArea: 'My Dashboard', menu: 'Menu',
+    events2026: 'Events 2026', events: 'Events', series: 'Series', season: 'Season',
+    serieFilter: 'Series / Event', typeFilter: 'Type', regionFilter: 'Region',
+    resetFilters: '✕ Reset Filters', noResults: 'No events found for this filter.',
+    mapHeader: 'Map — Northern Germany', eventDetail: '⚔️ Event Details →', website: 'Website →',
+  },
+} as const
+type MapLang = keyof typeof mapDict
+
+function useMapLang(): MapLang {
+  const [lang, setLang] = useState<MapLang>('de')
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nordcup-prefs')
+      if (saved) { const p = JSON.parse(saved); if (p.lang === 'en' || p.lang === 'de') setLang(p.lang) }
+    } catch { /* ignore */ }
+  }, [])
+  return lang
+}
+
 // ── Types ────────────────────────────────────────────────
 interface Filters {
   serie: Set<string>
@@ -42,6 +72,8 @@ const badgeBg: Record<string, string> = {
 }
 
 export default function NordcupMap() {
+  const lang = useMapLang()
+  const t = mapDict[lang]
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markerRefs = useRef<Record<number, L.Marker>>({})
@@ -78,7 +110,9 @@ export default function NordcupMap() {
 
   // ── Stats ─────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+    const months = lang === 'en'
+      ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      : ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
     if (!sortedEvents.length) return { events: 0, series: 0, season: '—' }
     const first = new Date(sortedEvents[0].dateSort)
     const last = new Date(sortedEvents[sortedEvents.length - 1].dateSort)
@@ -87,7 +121,7 @@ export default function NordcupMap() {
       series: new Set(filteredEvents.map((e) => e.serie)).size,
       season: `${months[first.getMonth()]}–${months[last.getMonth()]}`,
     }
-  }, [filteredEvents, sortedEvents])
+  }, [filteredEvents, sortedEvents, lang])
 
   // ── Map init ──────────────────────────────────────────────
   useEffect(() => {
@@ -139,7 +173,7 @@ export default function NordcupMap() {
         : ''
       const vikingBtn =
         ev.id === 4
-          ? `<a class="popup-link popup-link--viking" href="/viking-bike-challenge" style="display:inline-block;margin-top:4px;">⚔️ Event-Detailseite →</a>`
+          ? `<a class="popup-link popup-link--viking" href="/viking-bike-challenge" style="display:inline-block;margin-top:4px;">${lang === 'en' ? '⚔️ Event Details →' : '⚔️ Event-Detailseite →'}</a>`
           : ''
 
       const marker = L.marker([ev.lat, ev.lon], { icon })
@@ -254,7 +288,7 @@ export default function NordcupMap() {
       }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>🚴</span>
-          Radsport Norddeutschland
+          {t.title}
           <span style={{
             background: 'var(--accent)',
             color: '#fff',
@@ -281,7 +315,7 @@ export default function NordcupMap() {
               fontWeight: 600,
             }}
           >
-            🚴 Mein Bereich
+            🚴 {t.myArea}
           </Link>
 
           {/* Mobile menu toggle */}
@@ -297,7 +331,7 @@ export default function NordcupMap() {
             padding: 4,
           }}
           className="mobile-menu-btn"
-          aria-label="Menü"
+          aria-label={t.menu}
         >☰</button>
         </div>
       </header>
@@ -317,14 +351,14 @@ export default function NordcupMap() {
           flexShrink: 0,
           overflowY: 'auto',
         }}>
-          <h2 style={{ fontSize: '1.15rem', margin: 0 }}>Veranstaltungen 2026</h2>
+          <h2 style={{ fontSize: '1.15rem', margin: 0 }}>{t.events2026}</h2>
 
           {/* Stats */}
           <div style={{ display: 'flex', gap: 16 }}>
             {[
-              { value: stats.events, label: 'Events' },
-              { value: stats.series, label: 'Serien' },
-              { value: stats.season, label: 'Saison' },
+              { value: stats.events, label: t.events },
+              { value: stats.series, label: t.series },
+              { value: stats.season, label: t.season },
             ].map((s) => (
               <div key={s.label} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--white)' }}>{s.value}</div>
@@ -337,7 +371,7 @@ export default function NordcupMap() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Serie */}
             <FilterGroup
-              label="Serie / Veranstaltung"
+              label={t.serieFilter}
               values={uniqueSeries}
               active={filters.serie}
               getColor={(v) => badgeBg[serieColorKeys[v] || 'nordcup'] || '#3d5875'}
@@ -345,7 +379,7 @@ export default function NordcupMap() {
             />
             {/* Typ */}
             <FilterGroup
-              label="Typ"
+              label={t.typeFilter}
               values={uniqueTypen}
               active={filters.typ}
               getColor={() => '#3d5875'}
@@ -353,7 +387,7 @@ export default function NordcupMap() {
             />
             {/* Region */}
             <FilterGroup
-              label="Region"
+              label={t.regionFilter}
               values={uniqueRegionen}
               active={filters.region}
               getColor={(v) => regionColorMap[v] || '#3d5875'}
@@ -374,7 +408,7 @@ export default function NordcupMap() {
                   fontWeight: 600,
                   alignSelf: 'flex-start',
                 }}
-              >✕ Filter zurücksetzen</button>
+              >✕ {t.resetFilters.replace('✕ ', '')}</button>
             )}
           </div>
 
@@ -385,7 +419,7 @@ export default function NordcupMap() {
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {sortedEvents.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--muted)', fontSize: '0.9rem' }}>
-                Keine Veranstaltungen für diesen Filter gefunden.
+                {t.noResults}
               </div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
@@ -421,7 +455,7 @@ export default function NordcupMap() {
             justifyContent: 'space-between',
             flexShrink: 0,
           }}>
-            <strong style={{ fontSize: '0.95rem' }}>Karte — Norddeutschland</strong>
+            <strong style={{ fontSize: '0.95rem' }}>{t.mapHeader}</strong>
             <div style={{ display: 'flex', gap: 12, fontSize: '0.75rem' }}>
               {[
                 { color: '#3d5875', label: 'NordCup' },

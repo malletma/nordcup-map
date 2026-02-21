@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UX-Dokumentation — NordCup Radsport-Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  
+  :root {
+    --blue: #2563eb; --blue-light: #dbeafe; --blue-dark: #1e40af;
+    --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1; --gray-400: #94a3b8; --gray-500: #64748b;
+    --gray-600: #475569; --gray-700: #334155; --gray-800: #1e293b; --gray-900: #0f172a;
+    --green: #16a34a; --orange: #ea580c; --red: #dc2626; --purple: #7c3aed;
+    --teal: #0d9488;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 20mm 18mm 25mm 18mm; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 10.5pt; line-height: 1.7; color: var(--gray-800);
+    background: #fff; max-width: 210mm; margin: 0 auto; padding: 40px 50px;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media print {
+    body { padding: 0; max-width: none; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    h2 { page-break-after: avoid; }
+    table, .info-box, .color-row { page-break-inside: avoid; }
+  }
+
+  .cover {
+    min-height: 90vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center; padding: 60px 0;
+  }
+  .cover-icon { font-size: 72px; margin-bottom: 32px; }
+  .cover h1 {
+    font-size: 32pt; font-weight: 900; color: var(--gray-900);
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px;
+  }
+  .cover .subtitle { font-size: 14pt; color: var(--purple); font-weight: 600; margin-bottom: 40px; }
+  .cover-meta { display: flex; flex-direction: column; gap: 6px; font-size: 10pt; color: var(--gray-500); }
+  .cover-meta strong { color: var(--gray-700); }
+  .cover-line { width: 80px; height: 4px; background: linear-gradient(90deg, var(--purple), #5b21b6); border-radius: 2px; margin: 30px auto; }
+
+  h1 { font-size: 22pt; font-weight: 900; color: var(--gray-900); margin: 48px 0 16px; }
+  h2 { font-size: 16pt; font-weight: 800; color: #5b21b6; margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #ede9fe; }
+  h3 { font-size: 12pt; font-weight: 700; color: var(--gray-800); margin: 24px 0 10px; }
+  h4 { font-size: 10.5pt; font-weight: 700; color: var(--gray-700); margin: 18px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--purple); }
+
+  .info-box {
+    background: var(--gray-50); border-left: 4px solid var(--purple);
+    border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0; font-size: 10pt;
+  }
+  .info-box.trend { background: #faf5ff; border-left-color: var(--purple); }
+  .info-box.success { background: #f0fdf4; border-left-color: var(--green); }
+  .info-box.ref { background: #eff6ff; border-left-color: var(--blue); }
+  .info-box-title { font-weight: 700; font-size: 10pt; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 9.5pt; }
+  th {
+    background: var(--gray-100); font-weight: 700; text-align: left;
+    padding: 10px 14px; border-bottom: 2px solid var(--gray-300);
+    color: var(--gray-700); font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  tr:hover td { background: var(--gray-50); }
+
+  code {
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 9pt;
+    background: var(--gray-100); padding: 2px 6px; border-radius: 4px; color: #5b21b6;
+  }
+
+  .badge {
+    display: inline-block; font-size: 8pt; font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-purple { background: #ede9fe; color: #5b21b6; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .badge-orange { background: #ffedd5; color: #c2410c; }
+
+  .color-swatch {
+    display: inline-block; width: 28px; height: 28px; border-radius: 6px;
+    vertical-align: middle; margin-right: 8px; border: 1px solid var(--gray-200);
+  }
+  .color-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+
+  .toc { margin: 24px 0 40px; }
+  .toc a {
+    display: flex; justify-content: space-between; text-decoration: none;
+    color: var(--gray-700); padding: 7px 0; border-bottom: 1px dotted var(--gray-300); font-size: 10.5pt;
+  }
+  .toc a:hover { color: var(--purple); }
+  .toc .section-num { color: var(--purple); font-weight: 700; margin-right: 10px; }
+
+  .doc-footer {
+    margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--gray-200);
+    font-size: 8.5pt; color: var(--gray-400); text-align: center;
+  }
+  .print-btn {
+    position: fixed; bottom: 30px; right: 30px; background: var(--purple); color: white;
+    border: none; padding: 14px 28px; border-radius: 12px; font-size: 14px;
+    font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+    font-family: inherit; z-index: 100;
+  }
+  .print-btn:hover { background: #5b21b6; }
+
+  .principle-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0;
+  }
+  .principle-card {
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: 10px; padding: 16px;
+  }
+  .principle-card h4 { margin: 0 0 6px; font-size: 10pt; }
+  .principle-card p { margin: 0; font-size: 9.5pt; color: var(--gray-600); }
+
+  .animation-sample {
+    background: var(--gray-900); border-radius: 10px; padding: 16px 20px;
+    margin: 12px 0; color: var(--gray-300); font-size: 9.5pt;
+  }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ Als PDF drucken</button>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-icon">🎨</div>
+  <h1 style="margin:0; border:none; padding:0;">UX-Dokumentation</h1>
+  <div class="subtitle">NordCup Radsport-Dashboard — Design & Experience</div>
+  <div class="cover-line"></div>
+  <div class="cover-meta">
+    <div><strong>Design-System:</strong> Custom — Glassmorphism + Sport-UI</div>
+    <div><strong>Referenzen:</strong> Apple HIG, Material Design 3, Forza Motorsport</div>
+    <div><strong>Projekt:</strong> https://malletma.github.io/nordcup-map/mein-bereich</div>
+    <div><strong>Datum:</strong> 20. Februar 2026</div>
+    <div><strong>Version:</strong> 2.0</div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- TOC -->
+<h2 style="margin-top:0;">Inhaltsverzeichnis</h2>
+<div class="toc">
+  <a href="#s1"><span><span class="section-num">1</span>Design-Philosophie & Trends</span></a>
+  <a href="#s2"><span><span class="section-num">2</span>Farbsystem & Theming</span></a>
+  <a href="#s3"><span><span class="section-num">3</span>Typografie</span></a>
+  <a href="#s4"><span><span class="section-num">4</span>Layout-System & Responsive Design</span></a>
+  <a href="#s5"><span><span class="section-num">5</span>Komponenten-Bibliothek</span></a>
+  <a href="#s6"><span><span class="section-num">6</span>Micro-Interactions & Animationen</span></a>
+  <a href="#s7"><span><span class="section-num">7</span>Die Garage — Forza-Inspired Design</span></a>
+  <a href="#s8"><span><span class="section-num">8</span>Datenvisualisierung</span></a>
+  <a href="#s9"><span><span class="section-num">9</span>Accessibility (Barrierefreiheit)</span></a>
+  <a href="#s10"><span><span class="section-num">10</span>Internationalisierung (i18n)</span></a>
+  <a href="#s11"><span><span class="section-num">11</span>Nielsen-Heuristiken — Checkliste</span></a>
+  <a href="#s12"><span><span class="section-num">12</span>Empfehlungen & Next Steps</span></a>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 1 -->
+<h2 id="s1">1. Design-Philosophie & Trends</h2>
+
+<h3>1.1 Leitbild</h3>
+<p>Das Dashboard verbindet <strong>datengetriebenes Sport-UI</strong> mit <strong>emotionalem Erlebnis-Design</strong>. Es soll sich anfühlen wie das Cockpit eines Premium-Sportwagens — nicht wie eine Excel-Tabelle.</p>
+
+<div class="principle-grid">
+  <div class="principle-card">
+    <h4>🎯 Data-First</h4>
+    <p>Relevante Daten sofort sichtbar, ohne Klicken. Zahlen sprechen für sich — unterstützt durch Animationen.</p>
+  </div>
+  <div class="principle-card">
+    <h4>✨ Emotional Design</h4>
+    <p>Streak-Flammen, Confetti bei PRs, pulsierende Akzente — Dopamin-Feedback wie in Gaming-UIs.</p>
+  </div>
+  <div class="principle-card">
+    <h4>🌙 Dark-First</h4>
+    <p>Dark Mode als Default (Trend 2025/26). High-Contrast Neon-Akzente auf dunklem Untergrund.</p>
+  </div>
+  <div class="principle-card">
+    <h4>🏎️ Forza-Inspired</h4>
+    <p>Die Garage-Section emuliert die Fahrzeug-Auswahl aus Forza Motorsport — Spotlight, Flip Cards, Neon.</p>
+  </div>
+</div>
+
+<h3>1.2 Trend-Referenzen</h3>
+
+<div class="info-box trend">
+  <div class="info-box-title">🔮 Aktuelle UX-Trends (2025/26), die eingeflossen sind</div>
+  <table style="margin:8px 0 0;">
+    <tr><th>Trend</th><th>Quelle / Referenz</th><th>Umsetzung im Dashboard</th></tr>
+    <tr><td><strong>Glassmorphism</strong></td><td>Apple visionOS, iOS 18</td><td>Halbtransparente Cards mit <code>backdrop-filter: blur(20px)</code></td></tr>
+    <tr><td><strong>Bento Grid Layout</strong></td><td>Apple WWDC 2024, Linear.app</td><td>Modulares Grid-Layout der Statistik-Karten</td></tr>
+    <tr><td><strong>Animated Numbers</strong></td><td>Stripe Dashboard, Revolut</td><td>CountUp-Animationen bei allen Metriken</td></tr>
+    <tr><td><strong>Neon Glow UI</strong></td><td>Gaming-UIs, Cyberpunk</td><td>Glowing Borders, Akzent-Schatten, Spotlight</td></tr>
+    <tr><td><strong>Dark Mode Default</strong></td><td>90% der Fitness-Apps (Strava, Garmin, Wahoo)</td><td>Dark Theme als Standard, Light als Alternative</td></tr>
+    <tr><td><strong>Micro-Interactions</strong></td><td>Material Design 3, Framer Motion</td><td>Slide-Up, Pulse, Float-Animationen</td></tr>
+    <tr><td><strong>Progressive Disclosure</strong></td><td>Nielsen Norman Group</td><td>Tabs statt einer endlosen Seite; Modal für Details</td></tr>
+  </table>
+</div>
+
+<!-- SECTION 2 -->
+<div class="page-break"></div>
+<h2 id="s2">2. Farbsystem & Theming</h2>
+
+<h3>2.1 Dark Theme (Default)</h3>
+<table>
+  <tr><th>Token</th><th>Farbe</th><th>Hex</th><th>Verwendung</th></tr>
+  <tr><td><code>bg</code></td><td><span class="color-swatch" style="background:#04080f;"></span></td><td><code>#04080f</code></td><td>Seiten-Hintergrund</td></tr>
+  <tr><td><code>bg2</code></td><td><span class="color-swatch" style="background:#0a1020;"></span></td><td><code>#0a1020</code></td><td>Navigation, Sektions-Hintergrund</td></tr>
+  <tr><td><code>card</code></td><td><span class="color-swatch" style="background:rgba(255,255,255,0.04);border-color:#333;"></span></td><td>4% Weiß</td><td>Card-Hintergrund</td></tr>
+  <tr><td><code>accent</code></td><td><span class="color-swatch" style="background:#38bdf8;"></span></td><td><code>#38bdf8</code></td><td>Primär-Akzent (Sky Blue)</td></tr>
+  <tr><td><code>accent2</code></td><td><span class="color-swatch" style="background:#818cf8;"></span></td><td><code>#818cf8</code></td><td>Sekundär-Akzent (Indigo)</td></tr>
+  <tr><td><code>green</code></td><td><span class="color-swatch" style="background:#34d399;"></span></td><td><code>#34d399</code></td><td>Positiv, Erfolg, „Top Shape"</td></tr>
+  <tr><td><code>yellow</code></td><td><span class="color-swatch" style="background:#fbbf24;"></span></td><td><code>#fbbf24</code></td><td>Warnung, Beste Woche, Highlights</td></tr>
+  <tr><td><code>red</code></td><td><span class="color-swatch" style="background:#f87171;"></span></td><td><code>#f87171</code></td><td>Gefahr, Wartung, Suffer Score</td></tr>
+  <tr><td><code>purple</code></td><td><span class="color-swatch" style="background:#a78bfa;"></span></td><td><code>#a78bfa</code></td><td>Gravel-Rides, Sekundär-Charts</td></tr>
+  <tr><td><code>white</code></td><td><span class="color-swatch" style="background:#e6eef8;"></span></td><td><code>#e6eef8</code></td><td>Primär-Text</td></tr>
+  <tr><td><code>muted</code></td><td><span class="color-swatch" style="background:#4a5e7a;"></span></td><td><code>#4a5e7a</code></td><td>Sekundär-Text, Labels</td></tr>
+</table>
+
+<h3>2.2 Light Theme</h3>
+<table>
+  <tr><th>Token</th><th>Farbe</th><th>Hex</th><th>Kontrast-Ratio vs. Hintergrund</th></tr>
+  <tr><td><code>bg</code></td><td><span class="color-swatch" style="background:#f0f4f8;"></span></td><td><code>#f0f4f8</code></td><td>—</td></tr>
+  <tr><td><code>accent</code></td><td><span class="color-swatch" style="background:#2563eb;"></span></td><td><code>#2563eb</code></td><td>4.6:1 ✅ (WCAG AA)</td></tr>
+  <tr><td><code>white</code> (Text)</td><td><span class="color-swatch" style="background:#0f172a;"></span></td><td><code>#0f172a</code></td><td>15.4:1 ✅ (WCAG AAA)</td></tr>
+  <tr><td><code>muted</code></td><td><span class="color-swatch" style="background:#64748b;"></span></td><td><code>#64748b</code></td><td>4.6:1 ✅ (WCAG AA)</td></tr>
+</table>
+
+<h3>2.3 Design-Entscheidung: Warum Dark-First?</h3>
+<div class="info-box ref">
+  <div class="info-box-title">📖 Begründung</div>
+  <ul style="margin:0;padding-left:18px;">
+    <li><strong>Branchenstandard:</strong> Strava, Garmin Connect, Wahoo, TrainingPeaks — alle Fitness-Dashboards nutzen Dark Mode als Default</li>
+    <li><strong>Augenschonung:</strong> Athleten nutzen Dashboards oft abends nach dem Training</li>
+    <li><strong>Neon-Kontrast:</strong> Leuchtende Akzentfarben kommen auf dunklem Hintergrund besser zur Geltung</li>
+    <li><strong>Emotionaler Impact:</strong> Dark UIs fühlen sich „premium" und „professionell" an (Gaming/Automotive-UX-Forschung)</li>
+    <li><strong>Trotzdem:</strong> Light Mode ist vollständig implementiert für Nutzer mit Präferenz</li>
+  </ul>
+</div>
+
+<!-- SECTION 3 -->
+<h2 id="s3">3. Typografie</h2>
+
+<table>
+  <tr><th>Element</th><th>Schrift</th><th>Gewicht</th><th>Größe</th><th>Begründung</th></tr>
+  <tr><td>Headline H1</td><td>Inter</td><td>900 (Black)</td><td>clamp(1.6rem, 3vw, 2.4rem)</td><td>Fluid Typography — responsive ohne Media Queries</td></tr>
+  <tr><td>Section Title</td><td>Inter</td><td>900</td><td>clamp(1.2rem, 2.5vw, 1.7rem)</td><td>Hierarchisch untergeordnet</td></tr>
+  <tr><td>Metriken (Zahlen)</td><td>Inter</td><td>900</td><td>2.4rem</td><td>Dominant, sofort lesbar</td></tr>
+  <tr><td>Body Text</td><td>Inter</td><td>400-600</td><td>12-13px</td><td>Kompakt, Dashboard-optimiert</td></tr>
+  <tr><td>Labels / Tags</td><td>Inter</td><td>700-800</td><td>9-10px, UPPERCASE</td><td>Kategorie-Markierung, Ordnung</td></tr>
+  <tr><td>Zahlen-Tabular</td><td>Inter</td><td>900</td><td>variabel</td><td><code>font-variant-numeric: tabular-nums</code> — gleichbreite Ziffern</td></tr>
+</table>
+
+<h4>Warum Inter?</h4>
+<ul>
+  <li><strong>Lesbarkeit:</strong> Speziell für Bildschirme designed (Rasmus Andersson, ex-Figma)</li>
+  <li><strong>Variable Font:</strong> Ein Font-File für alle Gewichte (Performance!)</li>
+  <li><strong>Tabular Nums:</strong> Gleichbreite Ziffern — essenziell für Dashboards mit sich ändernden Zahlen</li>
+  <li><strong>Self-hosted:</strong> Via <code>next/font/google</code> — kein externer Request (Privacy + Performance)</li>
+</ul>
+
+<!-- SECTION 4 -->
+<div class="page-break"></div>
+<h2 id="s4">4. Layout-System & Responsive Design</h2>
+
+<h3>4.1 Grid-System</h3>
+<table>
+  <tr><th>Bereich</th><th>Layout</th><th>Technik</th></tr>
+  <tr><td>Statistik-Cards (Hero)</td><td>Auto-Fill Grid</td><td><code>grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))</code></td></tr>
+  <tr><td>Training Charts</td><td>2-Spalten</td><td><code>grid-template-columns: 1fr 1fr</code></td></tr>
+  <tr><td>Garage Detail</td><td>Foto + Sidebar</td><td><code>grid-template-columns: 1fr 340px</code></td></tr>
+  <tr><td>Rennen-Detail</td><td>2-Spalten responsive</td><td><code>repeat(auto-fit, minmax(320px, 1fr))</code></td></tr>
+  <tr><td>Streak + Rekorde</td><td>Sidebar + Grid</td><td><code>grid-template-columns: 180px 1fr</code></td></tr>
+</table>
+
+<h3>4.2 Responsive Strategie</h3>
+<p>Das Dashboard nutzt <strong>keine Media Queries</strong> — stattdessen:</p>
+<ul>
+  <li><strong>Fluid Grid</strong> mit <code>auto-fit</code> / <code>auto-fill</code> — Karten fließen automatisch um</li>
+  <li><strong>Fluid Typography</strong> mit <code>clamp()</code> — Schriftgrößen skalieren mit dem Viewport</li>
+  <li><strong>Flex-Wrap</strong> — Elemente brechen automatisch in die nächste Zeile</li>
+  <li><strong>Min/Max-Width</strong> auf Containern statt harter Breakpoints</li>
+</ul>
+
+<div class="info-box trend">
+  <div class="info-box-title">🔮 Trend: Intrinsic Design (Jen Simmons, Apple)</div>
+  <p style="margin:0;">Statt fester Breakpoints (z.B. „bei 768px → 1 Spalte") passt sich das Layout <strong>intrinsisch</strong> an den verfügbaren Platz an. Das ist robuster, zukunftssicherer und funktioniert auf allen Bildschirmgrößen — auch solchen, die es heute noch nicht gibt.</p>
+</div>
+
+<h3>4.3 Maximale Breite</h3>
+<ul>
+  <li><strong>Content:</strong> <code>max-width: 1400px</code> mit <code>margin: 0 auto</code></li>
+  <li><strong>Navigation:</strong> Full-Width mit Content-Container innen</li>
+  <li><strong>Begründung:</strong> Auf Ultra-Wide-Monitoren (34"+) bleibt das Dashboard lesbar und zentriert</li>
+</ul>
+
+<!-- SECTION 5 -->
+<h2 id="s5">5. Komponenten-Bibliothek</h2>
+
+<p>Das Dashboard verwendet wiederverwendbare React-Komponenten mit konsistenten Design-Tokens:</p>
+
+<table>
+  <tr><th>Komponente</th><th>Zweck</th><th>Design-Pattern</th></tr>
+  <tr><td><code>GlassCard</code></td><td>Container für alle Inhaltsblöcke</td><td>Glassmorphism: halbtransparent, blur, subtiler Border, optionaler Glow</td></tr>
+  <tr><td><code>SectionTag</code></td><td>Überschrift mit Tag + Subtitle</td><td>10px Label (UPPERCASE, Akzent) + 1.7rem Titel + Subtitle</td></tr>
+  <tr><td><code>AnimatedNumber</code></td><td>Metriken mit Count-Up</td><td>Cubic-Ease-Out Animation, 1.6s Dauer, gestaffelt</td></tr>
+  <tr><td><code>ProgressBar</code></td><td>Fortschrittsanzeige</td><td>Farbiger Balken mit Gradient + Glow, animierter Einblende</td></tr>
+  <tr><td><code>LiveDot</code></td><td>Online-Status-Indikator</td><td>Grüner Punkt mit Pulse-Animation und Glow</td></tr>
+  <tr><td><code>BikeGarage</code></td><td>Forza-Stil Garage</td><td>Scroll-Snap Thumbnails, Spotlight, Neon-Linien</td></tr>
+  <tr><td><code>BikeModal</code></td><td>Bike-Detail-Editor</td><td>Full-Screen Overlay, blur Backdrop, slide-up Animation</td></tr>
+  <tr><td><code>RaceCard</code></td><td>Rennen mit Countdown</td><td>Gradient-Header, Live-Timer, inline Map</td></tr>
+  <tr><td><code>YearRing</code></td><td>Jahres-Fortschrittsring</td><td>SVG-Circle mit animiertem stroke-dashoffset</td></tr>
+  <tr><td><code>Heatmap</code></td><td>365-Tage-Aktivitäts-Kalender</td><td>GitHub-Contribution-Style, Hover-Zoom, Farbintensität</td></tr>
+  <tr><td><code>RadarChart</code></td><td>Wochentags-Verteilung</td><td>SVG-Radar mit Polygon, Achsenlinien, Labels</td></tr>
+</table>
+
+<!-- SECTION 6 -->
+<div class="page-break"></div>
+<h2 id="s6">6. Micro-Interactions & Animationen</h2>
+
+<h3>6.1 Animation-Inventar</h3>
+<table>
+  <tr><th>Animation</th><th>CSS-Name</th><th>Dauer</th><th>Timing</th><th>Zweck</th></tr>
+  <tr><td>Count-Up Zahlen</td><td>(JavaScript)</td><td>1.6s</td><td>cubic-bezier(.4,0,.2,1)</td><td>Metriken „zählen hoch" beim Laden</td></tr>
+  <tr><td>Slide Up</td><td><code>slideUp</code></td><td>0.4s</td><td>ease</td><td>Karten erscheinen von unten</td></tr>
+  <tr><td>Fade In</td><td><code>fadeIn</code></td><td>0.3s</td><td>ease</td><td>Sanftes Einblenden</td></tr>
+  <tr><td>Pulse Glow</td><td><code>pulseGlow</code></td><td>3s</td><td>ease infinite</td><td>Avatar-Ring pulsiert</td></tr>
+  <tr><td>Fire Flicker</td><td><code>fireflicker</code></td><td>1s</td><td>ease infinite</td><td>Streak-Flamme 🔥 flackert</td></tr>
+  <tr><td>Float 1/2/3</td><td><code>float1/2/3</code></td><td>15-22s</td><td>ease infinite</td><td>Ambient Background-Blobs</td></tr>
+  <tr><td>Spotlight</td><td><code>spotlight</code></td><td>4s</td><td>ease infinite</td><td>Garage-Beleuchtung</td></tr>
+  <tr><td>Neon Pulse</td><td><code>neonPulse</code></td><td>3s</td><td>ease infinite</td><td>Garage-Top-Linie</td></tr>
+  <tr><td>Garage Slide</td><td><code>garageSlide</code></td><td>0.4s</td><td>ease</td><td>Neues Bike einblenden</td></tr>
+  <tr><td>Progress Bar</td><td>(CSS transition)</td><td>1.2s</td><td>cubic-bezier(.4,0,.2,1)</td><td>Balken wachsen ein</td></tr>
+  <tr><td>Saved Toast</td><td><code>savedToast</code></td><td>2.5s</td><td>ease both</td><td>Bestätigungs-Toast</td></tr>
+  <tr><td>Count Flip</td><td><code>countFlip</code></td><td>0.2s</td><td>ease</td><td>Countdown-Sekunden wechseln</td></tr>
+</table>
+
+<h3>6.2 Animation-Philosophie</h3>
+<div class="info-box ref">
+  <div class="info-box-title">📖 Design-Entscheidungen</div>
+  <ul style="margin:0;padding-left:18px;">
+    <li><strong>Gestaffelte Verzögerung</strong> (<code>delay: 60ms × index</code>) — Karten erscheinen nacheinander, erzeugt Rhythmus</li>
+    <li><strong>Cubic-Bezier statt linear</strong> — Natürliche Beschleunigung/Abbremsung (Material Design Empfehlung)</li>
+    <li><strong>Keine Layout-Shifts</strong> — Animationen nutzen <code>transform</code> und <code>opacity</code> (GPU-optimiert, kein Reflow)</li>
+    <li><strong>Dezente Ambient-Animationen</strong> — Floating Blobs und Neon-Pulse laufen langsam (15-22s), sind subtil und nicht ablenkend</li>
+    <li><strong>Interaktions-Feedback</strong> — Hover auf Heatmap-Zellen → scale(1.5), Buttons → scale(1.02)</li>
+  </ul>
+</div>
+
+<!-- SECTION 7 -->
+<h2 id="s7">7. Die Garage — Forza-Inspired Design</h2>
+
+<h3>7.1 Konzept</h3>
+<p>Die Bike-Garage emuliert die Fahrzeugauswahl aus <strong>Forza Motorsport / Gran Turismo</strong>. Der Athlet soll seine Fahrräder wie „Charaktere in einem Spiel" erleben — mit Spotlight-Beleuchtung, technischen Spec-Sheets und Kilometerständen als „Level-Anzeige".</p>
+
+<h3>7.2 Design-Elemente</h3>
+<table>
+  <tr><th>Element</th><th>Inspiriert von</th><th>Umsetzung</th></tr>
+  <tr><td>Spotlight-Kegel</td><td>Automotive-Showroom</td><td>Radiales Gradient von oben, pulsierend</td></tr>
+  <tr><td>Neon-Linien</td><td>Cyberpunk / Gaming UI</td><td>Top-Border mit <code>neonPulse</code> Animation</td></tr>
+  <tr><td>Thumbnail-Karussell</td><td>Forza Garage</td><td>Scroll-Snap, aktives Bike vergrößert (110px vs. 90px)</td></tr>
+  <tr><td>Kilometerstand-Bar</td><td>RPG Health Bar</td><td>Progress-Bar 0-20.000 km mit Farbcodierung (grün→gelb→rot)</td></tr>
+  <tr><td>Anteil-Donut</td><td>Fitness-Dashboard</td><td>SVG-Circle mit stroke-dasharray pro Bike</td></tr>
+  <tr><td>Floor-Text</td><td>Showroom Boden</td><td><code>GARAGE FLOOR</code> in 40% opacity am unteren Rand</td></tr>
+  <tr><td>Prev/Next-Buttons</td><td>Karussell-UI</td><td>Runde Buttons mit Backdrop-Blur</td></tr>
+  <tr><td>Bike-Counter</td><td>Slideshow</td><td><code>2 / 5</code> rechts unten</td></tr>
+</table>
+
+<h3>7.3 Wartungs-Status-Logik</h3>
+<table>
+  <tr><th>Kilometer</th><th>Status</th><th>Farbe</th><th>Icon</th></tr>
+  <tr><td>&lt; 8.000 km</td><td>Top Shape</td><td><span class="color-swatch" style="background:#34d399;width:16px;height:16px;"></span> Grün</td><td>✅</td></tr>
+  <tr><td>8.000 – 15.000 km</td><td>Check fällig</td><td><span class="color-swatch" style="background:#fbbf24;width:16px;height:16px;"></span> Gelb</td><td>🔄</td></tr>
+  <tr><td>&gt; 15.000 km</td><td>Wartung nötig</td><td><span class="color-swatch" style="background:#f87171;width:16px;height:16px;"></span> Rot</td><td>⚠️</td></tr>
+</table>
+
+<!-- SECTION 8 -->
+<div class="page-break"></div>
+<h2 id="s8">8. Datenvisualisierung</h2>
+
+<h3>8.1 Chart-Typen</h3>
+<table>
+  <tr><th>Visualisierung</th><th>Technik</th><th>Begründung</th></tr>
+  <tr><td>Jahres-Fortschritt</td><td>SVG Circle (stroke-dashoffset)</td><td>Emotional: Ring füllt sich → Motivation</td></tr>
+  <tr><td>Heatmap (365d)</td><td>CSS Grid (53×7)</td><td>Muster sofort erkennbar (GitHub-Style, vertraut)</td></tr>
+  <tr><td>Wochenbelastung</td><td>Flex-Balken</td><td>Vergleich zwischen Wochen auf einen Blick</td></tr>
+  <tr><td>Monatsvergleich</td><td>Flex-Balken</td><td>Saisonale Trends erkennbar</td></tr>
+  <tr><td>Trainingsform-Trend</td><td>SVG Polyline + Bars</td><td>Überlagert: Balken = Woche, Linie = Trend</td></tr>
+  <tr><td>Sportarten-Verteilung</td><td>Progress-Bars</td><td>Einfach lesbar, sortiert nach Häufigkeit</td></tr>
+  <tr><td>Radar-Chart (Tage)</td><td>SVG Polygon</td><td>7-Achsen-Radar zeigt Wochentags-Muster</td></tr>
+  <tr><td>HR-Zonen</td><td>Stacked Bar + einzelne Bars</td><td>Doppelte Darstellung: Übersicht + Detail</td></tr>
+  <tr><td>Höhenprofil</td><td>SVG Polygon + Polyline</td><td>Rennen: Streckenprofil intuitiv erfassbar</td></tr>
+</table>
+
+<h3>8.2 Farbcodierung per Sportart</h3>
+<table>
+  <tr><th>Sportart</th><th>Farbe</th><th>Hex</th><th>Emoji</th></tr>
+  <tr><td>Ride (Road)</td><td><span class="color-swatch" style="background:#38bdf8;width:16px;height:16px;"></span></td><td><code>#38bdf8</code></td><td>🚴</td></tr>
+  <tr><td>Gravel Ride</td><td><span class="color-swatch" style="background:#a78bfa;width:16px;height:16px;"></span></td><td><code>#a78bfa</code></td><td>🪨</td></tr>
+  <tr><td>Virtual Ride</td><td><span class="color-swatch" style="background:#fbbf24;width:16px;height:16px;"></span></td><td><code>#fbbf24</code></td><td>⚡</td></tr>
+  <tr><td>Mountain Bike</td><td><span class="color-swatch" style="background:#34d399;width:16px;height:16px;"></span></td><td><code>#34d399</code></td><td>🏔️</td></tr>
+  <tr><td>E-Bike</td><td><span class="color-swatch" style="background:#2dd4bf;width:16px;height:16px;"></span></td><td><code>#2dd4bf</code></td><td>🔋</td></tr>
+</table>
+
+<!-- SECTION 9 -->
+<h2 id="s9">9. Accessibility (Barrierefreiheit)</h2>
+
+<table>
+  <tr><th>Kriterium</th><th>Status</th><th>Details</th></tr>
+  <tr><td>Farbkontrast (Text)</td><td><span class="badge badge-green">✅ WCAG AA</span></td><td>Primär-Text auf Dark BG: >7:1; Light Mode: >15:1</td></tr>
+  <tr><td>Farbkontrast (Akzente)</td><td><span class="badge badge-green">✅ WCAG AA</span></td><td>Akzentfarben auf Dark: ≥4.5:1 für große Texte</td></tr>
+  <tr><td>Keyboard Navigation</td><td><span class="badge badge-orange">⚠️ TEILWEISE</span></td><td>Buttons sind fokussierbar; Tab-Reihenfolge logisch; keine Skip-Links</td></tr>
+  <tr><td>Screen Reader</td><td><span class="badge badge-orange">⚠️ TEILWEISE</span></td><td>Semantisches HTML (nav, section, h1-h4); aber SVG-Charts ohne aria-labels</td></tr>
+  <tr><td>Motion Preference</td><td><span class="badge badge-orange">⚠️ OFFEN</span></td><td><code>prefers-reduced-motion</code> noch nicht implementiert</td></tr>
+  <tr><td>Schriftgröße</td><td><span class="badge badge-green">✅</span></td><td>Fluid Typography mit clamp() — skaliert gut bei Browser-Zoom</td></tr>
+  <tr><td>Link-Texte</td><td><span class="badge badge-green">✅</span></td><td>Strava-Links haben beschreibenden Text + ↗-Indikator</td></tr>
+  <tr><td>Farbe allein?</td><td><span class="badge badge-green">✅</span></td><td>Status wird zusätzlich mit Emoji/Text kommuniziert (nicht nur Farbe)</td></tr>
+</table>
+
+<div class="info-box">
+  <div class="info-box-title">💡 Empfehlung</div>
+  <p style="margin:0;">Für WCAG 2.2 Level AA Compliance sollten noch <code>aria-label</code> auf SVG-Charts, <code>prefers-reduced-motion</code> Support, und Skip-Navigation-Links ergänzt werden.</p>
+</div>
+
+<!-- SECTION 10 -->
+<h2 id="s10">10. Internationalisierung (i18n)</h2>
+
+<h3>10.1 Implementierung</h3>
+<ul>
+  <li><strong>Sprachen:</strong> Deutsch (DE, Default) + Englisch (EN)</li>
+  <li><strong>Technik:</strong> Client-seitiges Translation-Object mit ~80 Schlüsseln</li>
+  <li><strong>Speicherung:</strong> Sprachpräferenz in <code>localStorage</code> (persistent)</li>
+  <li><strong>Umschaltung:</strong> Button in der Navigation (🇩🇪 / 🇬🇧)</li>
+</ul>
+
+<h3>10.2 UX-Entscheidungen</h3>
+<table>
+  <tr><th>Entscheidung</th><th>Begründung</th></tr>
+  <tr><td>Deutsch als Default</td><td>Primäre Zielgruppe ist deutschsprachig</td></tr>
+  <tr><td>Flaggen statt Text</td><td>Universell erkennbar, platzsparend</td></tr>
+  <tr><td>Instant Switch (kein Reload)</td><td>React-State-basiert — UI aktualisiert sich sofort</td></tr>
+  <tr><td>Zahlenformat <code>de-DE</code></td><td>Tausender-Punkt, Dezimal-Komma (1.234,5 km)</td></tr>
+  <tr><td>Rennen-Daten auf Deutsch</td><td>Rennen finden in DE/DK/SE statt — deutsche Sprache passend</td></tr>
+</table>
+
+<!-- SECTION 11 -->
+<div class="page-break"></div>
+<h2 id="s11">11. Nielsen-Heuristiken — Checkliste</h2>
+
+<p>Bewertung nach Jakob Nielsen's 10 Usability-Heuristiken:</p>
+
+<table>
+  <tr><th>#</th><th>Heuristik</th><th>Status</th><th>Umsetzung</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>Sichtbarkeit des Systemstatus</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Live-Dot zeigt Verbindungsstatus; Countdown-Timer zeigt Sekunden bis Refresh; Loading-Spinner beim Laden; Toast bei gespeicherten Daten</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>Übereinstimmung mit der realen Welt</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Sport-Emojis (🚴🔥⛰️), vertraute Metriken (km/h, bpm, Watt), deutsche Sprache, bekannte Rennbezeichnungen</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>Nutzerkontrolle & Freiheit</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Modal hat ✕-Button + Klick-auf-Hintergrund zum Schließen; Tab-Navigation jederzeit wechselbar; Logout prominent</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>Konsistenz & Standards</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Einheitliche GlassCard-Komponente; konsistente Farbsprache (Grün=gut, Rot=Achtung); gleiches Tag+Titel-Pattern überall</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>Fehlervermeidung</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Passwort-Feld leert sich bei Fehler; Prev/Next-Buttons werden bei Grenze deaktiviert; Input-Felder mit Typen (number, file)</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><strong>Erkennen statt Erinnern</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Alle Tabs sichtbar; keine versteckten Menüs; Bike-Thumbnails zeigen Fotos; Emojis als visuelle Anker</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td><strong>Flexibilität & Effizienz</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Deep-Links (#rennen in URL); Dark/Light Toggle; Sprach-Switch; Klick auf Bike-Foto öffnet Editor</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td><strong>Ästhetisches & minimalistisches Design</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>Information Hierarchy: Große Zahlen → Labels → Details. Progressive Disclosure über Tabs. Kein visueller Ballast.</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td><strong>Fehlerbehebung</strong></td>
+    <td><span class="badge badge-green">✅</span></td>
+    <td>API-Fehler: Retry-Button mit klarer Fehlermeldung. Login-Fehler: Deutschsprachige Fehlermeldung.</td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td><strong>Hilfe & Dokumentation</strong></td>
+    <td><span class="badge badge-orange">⚠️</span></td>
+    <td>Keine in-app Hilfe oder Tooltips. Kontext ist selbsterklärend, aber Onboarding/Tooltips wären ein Upgrade.</td>
+  </tr>
+</table>
+
+<div class="info-box success">
+  <div class="info-box-title">✅ Ergebnis: 9 von 10 Heuristiken erfüllt</div>
+  <p style="margin:0;">Das Dashboard erfüllt 9 von 10 Nielsen-Heuristiken vollständig. Einzig Punkt 10 (Hilfe & Doku) ist auf „teilweise" — da das Dashboard für einen einzelnen Power-User designt ist, ist dies ein akzeptierter Trade-Off.</p>
+</div>
+
+<!-- SECTION 12 -->
+<h2 id="s12">12. Empfehlungen & Next Steps</h2>
+
+<table>
+  <tr><th>Maßnahme</th><th>Impact</th><th>Aufwand</th><th>Priorität</th></tr>
+  <tr><td><code>prefers-reduced-motion</code> Support</td><td>Accessibility</td><td>~1h</td><td><span class="badge badge-purple">HOCH</span></td></tr>
+  <tr><td>aria-labels für SVG-Charts</td><td>Screen Reader</td><td>~2h</td><td><span class="badge badge-purple">HOCH</span></td></tr>
+  <tr><td>Komponenten-Refactoring (page.tsx aufteilen)</td><td>Wartbarkeit</td><td>~4h</td><td><span class="badge badge-orange">MITTEL</span></td></tr>
+  <tr><td>Skeleton-Loading statt Spinner</td><td>Perceived Performance</td><td>~3h</td><td><span class="badge badge-orange">MITTEL</span></td></tr>
+  <tr><td>Onboarding-Tooltips (erste Nutzung)</td><td>Verständlichkeit</td><td>~3h</td><td><span class="badge badge-blue">NIEDRIG</span></td></tr>
+  <tr><td>PWA Support (installierbar)</td><td>Mobile Experience</td><td>~2h</td><td><span class="badge badge-blue">NIEDRIG</span></td></tr>
+  <tr><td>Page Transition Animations</td><td>Polished Feel</td><td>~2h</td><td><span class="badge badge-blue">NIEDRIG</span></td></tr>
+</table>
+
+<div class="doc-footer">
+  <p>UX-Dokumentation — NordCup Radsport-Dashboard v2.0 · Februar 2026</p>
+  <p>Design-Referenzen: Apple HIG, Material Design 3, Forza Motorsport, Nielsen Norman Group</p>
+</div>
+
+</body>
+</html>

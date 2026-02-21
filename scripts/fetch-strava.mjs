@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
- * Pre-fetches Strava data and writes public/strava-data.json
+ * Pre-fetches Strava data, encrypts it with AES-256-GCM, and writes
+ * public/strava-data.json as an encrypted envelope.
+ *
  * Used by GitHub Actions before the static Next.js build.
  * Requires env vars: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
+ * Optional: PASSWORD_HASH (for encryption; falls back to hardcoded hash)
  */
 import { writeFileSync, mkdirSync } from 'fs'
+import { createCipheriv, randomBytes } from 'crypto'
 
 const { STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN } = process.env
 if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET || !STRAVA_REFRESH_TOKEN) {
@@ -224,5 +228,30 @@ const output = {
 }
 
 mkdirSync('public', { recursive: true })
-writeFileSync('public/strava-data.json', JSON.stringify(output, null, 2))
-console.log(`✓ Wrote public/strava-data.json  (${allActivities.length} activities, ${rides.length} rides)`)
+
+// ── AES-256-GCM Encryption ──────────────────────────────────────────────────
+const PASSWORD_HASH = process.env.PASSWORD_HASH
+if (!PASSWORD_HASH) {
+  console.error('Missing PASSWORD_HASH environment variable — cannot encrypt data')
+  process.exit(1)
+}
+
+const key = Buffer.from(PASSWORD_HASH, 'hex') // 32 bytes = AES-256
+const iv = randomBytes(12)                    // 96-bit nonce for GCM
+const cipher = createCipheriv('aes-256-gcm', key, iv)
+
+const plaintext = JSON.stringify(output, null, 2)
+const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+const tag = cipher.getAuthTag() // 16 bytes
+
+// Combine ciphertext + auth tag into one base64 blob
+const payload = Buffer.concat([encrypted, tag]).toString('base64')
+
+const envelope = {
+  _encrypted: true,
+  iv: iv.toString('hex'),
+  data: payload,
+}
+
+writeFileSync('public/strava-data.json', JSON.stringify(envelope))
+console.log(`✓ Wrote public/strava-data.json (encrypted, ${allActivities.length} activities, ${rides.length} rides)`)

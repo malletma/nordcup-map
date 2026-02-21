@@ -1,8 +1,23 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { routes } from '@/lib/data/routes'
 
+type RCLang = 'de' | 'en'
+const rcDict = {
+  de: { distance: 'Distanz', elevation: 'Höhenmeter', duration: 'Fahrzeit', profile: 'Höhenprofil (schematisch)', komoot: 'Route auf Komoot ansehen' },
+  en: { distance: 'Distance', elevation: 'Elevation', duration: 'Duration', profile: 'Elevation profile (schematic)', komoot: 'View route on Komoot' },
+}
+
 export default function RouteCards() {
+  const [lang, setLang] = useState<RCLang>('de')
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('nordcup-prefs')
+      if (s) { const p = JSON.parse(s); if (p.lang === 'en' || p.lang === 'de') setLang(p.lang) }
+    } catch { /* ignore */ }
+  }, [])
+  const rc = rcDict[lang]
   return (
     <div style={{
       display: 'grid',
@@ -52,9 +67,9 @@ export default function RouteCards() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {[
-                  { val: `${r.distance}`, unit: 'km', label: 'Distanz' },
-                  { val: `${r.elevation}`, unit: 'm', label: 'Höhenmeter' },
-                  { val: r.duration.split('–')[0].trim(), unit: '', label: 'Fahrzeit' },
+                  { val: `${r.distance}`, unit: 'km', label: rc.distance },
+                  { val: `${r.elevation}`, unit: 'm', label: rc.elevation },
+                  { val: r.duration.split('–')[0].trim(), unit: '', label: rc.duration },
                 ].map((s) => (
                   <div key={s.label} style={{
                     textAlign: 'center',
@@ -73,7 +88,7 @@ export default function RouteCards() {
               {/* Elevation Profile SVG */}
               <div style={{ marginTop: 14, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
                 <div style={{ fontSize: 11, color: '#7a8599', marginBottom: 6, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  Höhenprofil (schematisch)
+                  {rc.profile}
                 </div>
                 <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: 50, display: 'block' }}>
                   <defs>
@@ -112,7 +127,7 @@ export default function RouteCards() {
                     <polyline points="15 3 21 3 21 9"/>
                     <line x1="10" y1="14" x2="21" y2="3"/>
                   </svg>
-                  Route auf Komoot ansehen
+                  {rc.komoot}
                 </a>
               )}
             </div>

@@ -37,6 +37,7 @@ jobs:
           STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          PASSWORD_HASH: ${{ secrets.PASSWORD_HASH }}
         run: node scripts/fetch-strava.mjs
 
       - name: Build static site
@@ -44,7 +45,11 @@ jobs:
           NEXT_STATIC_EXPORT: 'true'
           NEXT_PUBLIC_DATA_URL: '/nordcup-map/strava-data.json'
           NEXT_PUBLIC_PASSWORD_HASH: ${{ secrets.PASSWORD_HASH }}
-        run: npm run build
+        run: |
+          # Temporarily exclude API routes (incompatible with static export)
+          mv app/api app/_api_excluded
+          npm run build
+          mv app/_api_excluded app/api
 
       - name: Add .nojekyll
         run: touch out/.nojekyll

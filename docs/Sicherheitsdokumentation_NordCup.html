@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sicherheitsdokumentation — NordCup Radsport-Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  
+  :root {
+    --blue: #2563eb; --blue-light: #dbeafe; --blue-dark: #1e40af;
+    --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1; --gray-400: #94a3b8; --gray-500: #64748b;
+    --gray-600: #475569; --gray-700: #334155; --gray-800: #1e293b; --gray-900: #0f172a;
+    --green: #16a34a; --orange: #ea580c; --red: #dc2626; --purple: #7c3aed;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 20mm 18mm 25mm 18mm; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 10.5pt; line-height: 1.7; color: var(--gray-800);
+    background: #fff; max-width: 210mm; margin: 0 auto; padding: 40px 50px;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media print {
+    body { padding: 0; max-width: none; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    h2 { page-break-after: avoid; }
+    table, .info-box, .risk-matrix { page-break-inside: avoid; }
+  }
+
+  .cover {
+    min-height: 90vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center; padding: 60px 0;
+  }
+  .cover-icon { font-size: 72px; margin-bottom: 32px; }
+  .cover h1 {
+    font-size: 32pt; font-weight: 900; color: var(--gray-900);
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px;
+  }
+  .cover .subtitle { font-size: 14pt; color: var(--red); font-weight: 600; margin-bottom: 40px; }
+  .cover-meta { display: flex; flex-direction: column; gap: 6px; font-size: 10pt; color: var(--gray-500); }
+  .cover-meta strong { color: var(--gray-700); }
+  .cover-line { width: 80px; height: 4px; background: linear-gradient(90deg, var(--red), #991b1b); border-radius: 2px; margin: 30px auto; }
+
+  h1 { font-size: 22pt; font-weight: 900; color: var(--gray-900); margin: 48px 0 16px; }
+  h2 { font-size: 16pt; font-weight: 800; color: #991b1b; margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #fecaca; }
+  h3 { font-size: 12pt; font-weight: 700; color: var(--gray-800); margin: 24px 0 10px; }
+  h4 { font-size: 10.5pt; font-weight: 700; color: var(--gray-700); margin: 18px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--red); }
+
+  .info-box {
+    background: var(--gray-50); border-left: 4px solid var(--blue);
+    border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0; font-size: 10pt;
+  }
+  .info-box.danger { background: #fef2f2; border-left-color: var(--red); }
+  .info-box.success { background: #f0fdf4; border-left-color: var(--green); }
+  .info-box.warning { background: #fff7ed; border-left-color: var(--orange); }
+  .info-box-title { font-weight: 700; font-size: 10pt; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 9.5pt; }
+  th {
+    background: var(--gray-100); font-weight: 700; text-align: left;
+    padding: 10px 14px; border-bottom: 2px solid var(--gray-300);
+    color: var(--gray-700); font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  tr:hover td { background: var(--gray-50); }
+
+  code {
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 9pt;
+    background: var(--gray-100); padding: 2px 6px; border-radius: 4px; color: #991b1b;
+  }
+  pre {
+    background: var(--gray-900); color: #e2e8f0; padding: 16px 20px;
+    border-radius: 8px; overflow-x: auto; font-size: 9pt; line-height: 1.6; margin: 16px 0 20px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  .badge {
+    display: inline-block; font-size: 8pt; font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-orange { background: #ffedd5; color: #c2410c; }
+  .badge-red { background: #fecaca; color: #991b1b; }
+  .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .badge-gray { background: var(--gray-200); color: var(--gray-600); }
+
+  .status-row td:first-child { font-weight: 700; }
+  .status-mitigated { color: var(--green); }
+  .status-partial { color: var(--orange); }
+  .status-risk { color: var(--red); }
+
+  .risk-matrix {
+    display: grid; grid-template-columns: auto repeat(5, 1fr);
+    gap: 2px; margin: 20px 0; font-size: 8.5pt; text-align: center;
+  }
+  .risk-cell {
+    padding: 8px 6px; border-radius: 4px; font-weight: 600;
+  }
+  .risk-low { background: #dcfce7; color: #15803d; }
+  .risk-med { background: #fef3c7; color: #92400e; }
+  .risk-high { background: #ffedd5; color: #c2410c; }
+  .risk-crit { background: #fecaca; color: #991b1b; }
+  .risk-header { background: var(--gray-100); font-weight: 700; color: var(--gray-600); padding: 8px 6px; border-radius: 4px; }
+  .risk-label { background: var(--gray-100); font-weight: 700; color: var(--gray-600); padding: 8px 6px; border-radius: 4px; text-align: right; }
+
+  .toc { margin: 24px 0 40px; }
+  .toc a {
+    display: flex; justify-content: space-between; text-decoration: none;
+    color: var(--gray-700); padding: 7px 0; border-bottom: 1px dotted var(--gray-300); font-size: 10.5pt;
+  }
+  .toc a:hover { color: var(--red); }
+  .toc .section-num { color: var(--red); font-weight: 700; margin-right: 10px; }
+
+  .doc-footer {
+    margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--gray-200);
+    font-size: 8.5pt; color: var(--gray-400); text-align: center;
+  }
+  .print-btn {
+    position: fixed; bottom: 30px; right: 30px; background: var(--red); color: white;
+    border: none; padding: 14px 28px; border-radius: 12px; font-size: 14px;
+    font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(220,38,38,0.35);
+    font-family: inherit; z-index: 100;
+  }
+  .print-btn:hover { background: #991b1b; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ Als PDF drucken</button>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-icon">🔒</div>
+  <h1 style="margin:0; border:none; padding:0;">Sicherheitsdokumentation</h1>
+  <div class="subtitle">NordCup Radsport-Dashboard — Security Assessment</div>
+  <div class="cover-line"></div>
+  <div class="cover-meta">
+    <div><strong>Klassifizierung:</strong> Vertraulich — Intern</div>
+    <div><strong>Framework:</strong> OWASP Top 10 (2025 Edition)</div>
+    <div><strong>Projekt:</strong> https://malletma.github.io/nordcup-map/</div>
+    <div><strong>Datum:</strong> 20. Februar 2026</div>
+    <div><strong>Version:</strong> 2.0</div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- TOC -->
+<h2 style="margin-top:0;">Inhaltsverzeichnis</h2>
+<div class="toc">
+  <a href="#s1"><span><span class="section-num">1</span>Executive Summary</span></a>
+  <a href="#s2"><span><span class="section-num">2</span>Scope & Threat Model</span></a>
+  <a href="#s3"><span><span class="section-num">3</span>OWASP Top 10 (2025) — Bewertung</span></a>
+  <a href="#s4"><span><span class="section-num">4</span>Authentifizierung & Session Management</span></a>
+  <a href="#s5"><span><span class="section-num">5</span>Kryptographie</span></a>
+  <a href="#s6"><span><span class="section-num">6</span>API-Sicherheit (Strava)</span></a>
+  <a href="#s7"><span><span class="section-num">7</span>Supply-Chain-Sicherheit</span></a>
+  <a href="#s8"><span><span class="section-num">8</span>HTTP Security Headers</span></a>
+  <a href="#s9"><span><span class="section-num">9</span>Datenschutz & DSGVO</span></a>
+  <a href="#s10"><span><span class="section-num">10</span>Risikomatrix</span></a>
+  <a href="#s11"><span><span class="section-num">11</span>Empfehlungen & Roadmap</span></a>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 1 -->
+<h2 id="s1">1. Executive Summary</h2>
+
+<p>Das NordCup Radsport-Dashboard ist eine <strong>statisch exportierte Single-Page-Application</strong> (SPA) auf Basis von Next.js 15, gehostet auf GitHub Pages. Die Anwendung verarbeitet persönliche Strava-Fitnessdaten und wird über ein Passwort-Login geschützt.</p>
+
+<div class="info-box success">
+  <div class="info-box-title">✅ Gesamt-Risikobewertung: NIEDRIG</div>
+  <p style="margin:0;">Die Angriffsfläche ist minimal: Kein Backend-Server, keine Datenbank, keine User-Uploads, keine Formulardaten werden serverseitig verarbeitet. Die statische Architektur eliminiert ganze Angriffskategorien (SQL Injection, SSRF, RCE). Hauptrisiko: Client-seitige Authentifizierung.</p>
+</div>
+
+<table>
+  <tr><th>Kategorie</th><th>Status</th><th>Bewertung</th></tr>
+  <tr><td>Authentifizierung</td><td><span class="badge badge-green">MITIGIERT</span></td><td>SHA-256 Hash, kein Klartext im Bundle</td></tr>
+  <tr><td>Session Management</td><td><span class="badge badge-green">MITIGIERT</span></td><td>sessionStorage, automatisches Logout bei Tab-Close</td></tr>
+  <tr><td>Kryptographie</td><td><span class="badge badge-green">MITIGIERT</span></td><td>Web Crypto API (SHA-256), keine eigenen Crypto-Implementierungen</td></tr>
+  <tr><td>API-Sicherheit</td><td><span class="badge badge-green">MITIGIERT</span></td><td>Secrets in GitHub Secrets, keine API-Keys im Frontend</td></tr>
+  <tr><td>Supply Chain</td><td><span class="badge badge-green">MITIGIERT</span></td><td>0 npm-Vulnerabilities, Lock-File, minimale Dependencies</td></tr>
+  <tr><td>HTTP Headers</td><td><span class="badge badge-orange">TEILWEISE</span></td><td>Konfiguriert, aber auf GitHub Pages nicht aktiv</td></tr>
+  <tr><td>DSGVO</td><td><span class="badge badge-orange">TEILWEISE</span></td><td>Persönliche Daten nur als Pre-fetched JSON; kein Cookie-Banner nötig</td></tr>
+  <tr><td>Client-Side Auth</td><td><span class="badge badge-orange">AKZEPTIERT</span></td><td>Architektur-Limitierung von Static Export; Upgrade empfohlen</td></tr>
+</table>
+
+<!-- SECTION 2 -->
+<h2 id="s2">2. Scope & Threat Model</h2>
+
+<h3>2.1 Scope</h3>
+<table>
+  <tr><th>Eingeschlossen</th><th>Ausgeschlossen</th></tr>
+  <tr><td>Client-seitige Webanwendung</td><td>Strava-Server und deren Sicherheit</td></tr>
+  <tr><td>GitHub Actions Pipeline</td><td>GitHub-Plattform-Sicherheit</td></tr>
+  <tr><td>Authentifizierungsmechanismus</td><td>Physische Sicherheit des Entwickler-Rechners</td></tr>
+  <tr><td>Strava API-Integration</td><td>Browser-Sicherheit</td></tr>
+  <tr><td>Dependency Supply Chain</td><td>DNS/CDN-Infrastruktur</td></tr>
+</table>
+
+<h3>2.2 Threat Actors</h3>
+<table>
+  <tr><th>Akteur</th><th>Motivation</th><th>Fähigkeiten</th><th>Relevanz</th></tr>
+  <tr><td>Zufälliger Besucher</td><td>Neugier</td><td>Gering</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+  <tr><td>Automatisierter Bot</td><td>Credential-Stuffing, Scraping</td><td>Mittel</td><td><span class="badge badge-orange">MITTEL</span></td></tr>
+  <tr><td>Gezielter Angreifer</td><td>Persönliche Daten (GPS-Tracks, Adresse)</td><td>Hoch</td><td><span class="badge badge-orange">MITTEL</span></td></tr>
+  <tr><td>Supply-Chain-Angriff</td><td>Malware über npm-Pakete</td><td>Hoch</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+</table>
+
+<h3>2.3 Assets (schützenswerte Daten)</h3>
+<ul>
+  <li><strong>Strava OAuth-Tokens</strong> — Zugriff auf Athleten-Daten (in GitHub Secrets, nie im Frontend)</li>
+  <li><strong>Persönliche Fitnessdaten</strong> — Trainingsrouten, Leistung, Herzfrequenz</li>
+  <li><strong>Standortdaten</strong> — Wohnort, Trainingsrouten im Umkreis</li>
+  <li><strong>Login-Passwort</strong> — Zugang zum privaten Bereich</li>
+</ul>
+
+<!-- SECTION 3 -->
+<div class="page-break"></div>
+<h2 id="s3">3. OWASP Top 10 (2025) — Bewertung</h2>
+
+<table>
+  <tr>
+    <th style="width:40px;">#</th>
+    <th>OWASP-Kategorie</th>
+    <th style="width:80px;">Status</th>
+    <th>Bewertung & Maßnahmen</th>
+  </tr>
+  <tr class="status-row">
+    <td>A01</td>
+    <td><strong>Broken Access Control</strong></td>
+    <td class="status-partial">⚠️ Teilweise</td>
+    <td>Client-seitige Auth kann umgangen werden (JavaScript deaktivieren/manipulieren). <strong>Aber:</strong> Die geschützten Daten (Strava) sind öffentlich über die JSON-Datei erreichbar — es gibt kein „echtes Geheimnis" hinter dem Login. Der Login ist eine <strong>Komfort-Hürde</strong>, kein Hochsicherheits-Gate. <em>Empfehlung: Server-seitige Auth bei Vercel-Migration.</em></td>
+  </tr>
+  <tr class="status-row">
+    <td>A02</td>
+    <td><strong>Cryptographic Failures</strong></td>
+    <td class="status-mitigated">✅ Mitigiert</td>
+    <td>SHA-256 via Web Crypto API (Browser-nativ, FIPS 140-2 konform). Kein Klartext-Passwort im Bundle. Kein eigener Crypto-Code. HTTPS durch GitHub Pages erzwungen.</td>
+  </tr>
+  <tr class="status-row">
+    <td>A03</td>
+    <td><strong>Injection</strong></td>
+    <td class="status-mitigated">✅ Nicht anwendbar</td>
+    <td>Keine serverseitige Datenverarbeitung. Keine SQL-Datenbank. Kein User-Input wird serverseitig ausgeführt. React escaped JSX-Output per Default (XSS-Schutz).</td>
+  </tr>
+  <tr class="status-row">
+    <td>A04</td>
+    <td><strong>Insecure Design</strong></td>
+    <td class="status-mitigated">✅ Mitigiert</td>
+    <td>Statische Architektur eliminiert Server-Angriffsfläche. Pre-fetched Daten statt Live-API-Calls. Least-Privilege bei Strava (read-only).</td>
+  </tr>
+  <tr class="status-row">
+    <td>A05</td>
+    <td><strong>Security Misconfiguration</strong></td>
+    <td class="status-partial">⚠️ Teilweise</td>
+    <td>Security Headers konfiguriert (X-Frame-Options, CSP, Referrer-Policy), aber auf GitHub Pages nicht aktiv. <code>poweredByHeader: false</code>. Keine Debug-Infos im Production-Build.</td>
+  </tr>
+  <tr class="status-row">
+    <td>A06</td>
+    <td><strong>Vulnerable Components</strong></td>
+    <td class="status-mitigated">✅ Mitigiert</td>
+    <td><code>npm audit</code>: 0 Vulnerabilities. Minimale Dependencies (Next.js, React, Leaflet). Lock-File (<code>package-lock.json</code>) pinnt exakte Versionen.</td>
+  </tr>
+  <tr class="status-row">
+    <td>A07</td>
+    <td><strong>Auth Failures</strong></td>
+    <td class="status-mitigated">✅ Mitigiert</td>
+    <td>SHA-256 Hash statt Klartext. sessionStorage (kurzlebig). Kein Rate-Limiting (Client-Side), aber Brute-Force gegen SHA-256 Hash ist nicht effizienter als Offline-Angriff.</td>
+  </tr>
+  <tr class="status-row">
+    <td>A08</td>
+    <td><strong>Data Integrity Failures</strong></td>
+    <td class="status-mitigated">✅ Mitigiert</td>
+    <td>Lock-File verhindert Supply-Chain-Manipulation. CI/CD via GitHub Actions (vertrauenswürdige Umgebung). Keine unsicheren Deserialisierungen.</td>
+  </tr>
+  <tr class="status-row">
+    <td>A09</td>
+    <td><strong>Logging & Monitoring</strong></td>
+    <td class="status-partial">⚠️ Teilweise</td>
+    <td>Kein serverseitiges Logging (statische Seite). GitHub Actions Logs vorhanden. Kein Alerting bei fehlgeschlagenen Logins. <em>Empfehlung: Vercel Analytics bei Migration.</em></td>
+  </tr>
+  <tr class="status-row">
+    <td>A10</td>
+    <td><strong>SSRF</strong></td>
+    <td class="status-mitigated">✅ Nicht anwendbar</td>
+    <td>Kein Server, der requests forwarden könnte. Alle zu Strava gerichteten Requests geschehen in GitHub Actions (nicht user-kontrolliert).</td>
+  </tr>
+</table>
+
+<!-- SECTION 4 -->
+<div class="page-break"></div>
+<h2 id="s4">4. Authentifizierung & Session Management</h2>
+
+<h3>4.1 Login-Ablauf</h3>
+<pre><code>Benutzer ──→ Passwort eingeben
+         ──→ SHA-256(passwort) im Browser berechnen
+         ──→ Hash vergleichen mit NEXT_PUBLIC_PASSWORD_HASH
+         ──→ Match? → sessionStorage.setItem("nordcup_auth", "authenticated")
+         ──→ Kein Match? → Fehlermeldung, Eingabefeld leeren</code></pre>
+
+<h3>4.2 Implementierungs-Details</h3>
+<table>
+  <tr><th>Eigenschaft</th><th>Implementierung</th><th>Bewertung</th></tr>
+  <tr><td>Hash-Algorithmus</td><td>SHA-256 via <code>crypto.subtle.digest()</code></td><td><span class="badge badge-green">SICHER</span> — Browser-native Web Crypto API</td></tr>
+  <tr><td>Passwort im Bundle?</td><td>Nein — nur 64-Zeichen-Hash</td><td><span class="badge badge-green">SICHER</span></td></tr>
+  <tr><td>Session-Speicher</td><td><code>sessionStorage</code></td><td><span class="badge badge-green">SICHER</span> — Wird bei Tab-Close gelöscht</td></tr>
+  <tr><td>Session-Token</td><td>Statischer String <code>"authenticated"</code></td><td><span class="badge badge-orange">AKZEPTABEL</span> — Client-seitig</td></tr>
+  <tr><td>Auto-Logout</td><td>Tab schließen = Session beendet</td><td><span class="badge badge-green">SICHER</span></td></tr>
+  <tr><td>Brute-Force-Schutz</td><td>Kein Rate-Limiting</td><td><span class="badge badge-orange">AKZEPTIERT</span> — Client-Only, Risiko gering</td></tr>
+  <tr><td>CSRF-Schutz</td><td>Nicht nötig (kein Server, kein Formular-POST)</td><td><span class="badge badge-green">N/A</span></td></tr>
+</table>
+
+<h3>4.3 Bekannte Limitierung</h3>
+<div class="info-box warning">
+  <div class="info-box-title">⚠️ Client-Side Authentication</div>
+  <p style="margin:0;">Da die Seite vollständig statisch ausgeliefert wird, findet die Authentifizierung <strong>ausschließlich im Browser</strong> statt. Ein technisch versierter Benutzer könnte:</p>
+  <ul style="margin:8px 0 0;padding-left:18px;">
+    <li>Im Browser-DevTool <code>sessionStorage.setItem("nordcup_auth","authenticated")</code> ausführen</li>
+    <li>Die <code>strava-data.json</code> direkt abrufen</li>
+  </ul>
+  <p style="margin:8px 0 0;"><strong>Risikobewertung:</strong> Akzeptiert. Die Strava-Daten sind dem Athleten zuzuordnen und enthalten keine kritischen Finanzdaten. Der Login dient als <strong>Zugangsbarriere gegen Gelegenheitsbesucher</strong>, nicht als Hochsicherheitsschutz.</p>
+</div>
+
+<!-- SECTION 5 -->
+<h2 id="s5">5. Kryptographie</h2>
+
+<table>
+  <tr><th>Verwendung</th><th>Algorithmus</th><th>Implementierung</th><th>Status</th></tr>
+  <tr><td>Passwort-Hashing</td><td>SHA-256</td><td>Web Crypto API (<code>crypto.subtle.digest</code>)</td><td><span class="badge badge-green">SICHER</span></td></tr>
+  <tr><td>HTTPS</td><td>TLS 1.2/1.3</td><td>GitHub Pages (automatisch)</td><td><span class="badge badge-green">SICHER</span></td></tr>
+  <tr><td>OAuth2 Token-Austausch</td><td>HTTPS</td><td>Strava API über GitHub Actions</td><td><span class="badge badge-green">SICHER</span></td></tr>
+</table>
+
+<h4>Warum SHA-256 und nicht bcrypt/Argon2?</h4>
+<p>bcrypt und Argon2 sind <strong>langsame</strong> Hash-Funktionen, die Brute-Force erschweren — jedoch sind sie <strong>serverseitig</strong> konzipiert. In einem statischen Frontend:</p>
+<ul>
+  <li>Die Web Crypto API unterstützt weder bcrypt noch Argon2 nativ</li>
+  <li>JavaScript-Implementierungen wären <strong>langsam und unsicher</strong></li>
+  <li>SHA-256 ist hier angemessen: Der Hash liegt ohnehin im öffentlichen Bundle — ein Offline-Brute-Force ist immer möglich, unabhängig vom Algorithmus</li>
+  <li><strong>Empfehlung:</strong> Bei Vercel-Migration auf bcrypt/Argon2 server-seitig umsteigen</li>
+</ul>
+
+<!-- SECTION 6 -->
+<h2 id="s6">6. API-Sicherheit (Strava)</h2>
+
+<h3>6.1 Credential Management</h3>
+<table>
+  <tr><th>Secret</th><th>Speicherort</th><th>Zugriff</th><th>Rotation</th></tr>
+  <tr><td><code>STRAVA_CLIENT_ID</code></td><td>GitHub Secrets</td><td>Nur GitHub Actions</td><td>Bei Kompromittierung</td></tr>
+  <tr><td><code>STRAVA_CLIENT_SECRET</code></td><td>GitHub Secrets</td><td>Nur GitHub Actions</td><td>Bei Kompromittierung</td></tr>
+  <tr><td><code>STRAVA_REFRESH_TOKEN</code></td><td>GitHub Secrets</td><td>Nur GitHub Actions</td><td>Bei Kompromittierung</td></tr>
+  <tr><td><code>PASSWORD_HASH</code></td><td>GitHub Secrets</td><td>Build-Prozess</td><td>Bei Passwort-Änderung</td></tr>
+</table>
+
+<h3>6.2 Strava-Berechtigungen</h3>
+<ul>
+  <li><strong>Scope:</strong> <code>read,activity:read_all</code> — Nur Lese-Zugriff</li>
+  <li><strong>Keine Schreibrechte</strong> — Die App kann keine Aktivitäten erstellen/löschen</li>
+  <li><strong>Kein Zugriff auf:</strong> Passwort, E-Mail, Zahlungsdaten</li>
+</ul>
+
+<div class="info-box success">
+  <div class="info-box-title">✅ Principle of Least Privilege</div>
+  <p style="margin:0;">Die Strava-Integration folgt dem Prinzip der minimalen Berechtigung: Es werden nur Lese-Rechte angefordert, und die Tokens verlassen nie die CI/CD-Pipeline (GitHub Actions). Im Frontend ist <strong>kein einziger API-Key oder Token</strong> vorhanden.</p>
+</div>
+
+<!-- SECTION 7 -->
+<div class="page-break"></div>
+<h2 id="s7">7. Supply-Chain-Sicherheit</h2>
+
+<h3>7.1 Dependency-Audit</h3>
+<pre><code>$ npm audit
+found 0 vulnerabilities</code></pre>
+
+<h3>7.2 Abhängigkeiten (Production)</h3>
+<table>
+  <tr><th>Paket</th><th>Version</th><th>Herausgeber</th><th>Risiko</th></tr>
+  <tr><td>next</td><td>15.5.12</td><td>Vercel (börsennotiert)</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+  <tr><td>react</td><td>19.2.4</td><td>Meta (Facebook)</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+  <tr><td>react-dom</td><td>19.2.4</td><td>Meta (Facebook)</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+  <tr><td>leaflet</td><td>1.9.x</td><td>Open-Source (1.400+ Contributor)</td><td><span class="badge badge-green">NIEDRIG</span></td></tr>
+</table>
+
+<h3>7.3 Maßnahmen</h3>
+<ul>
+  <li><strong>Lock-File:</strong> <code>package-lock.json</code> pinnt exakte Versionen (kein „version drift")</li>
+  <li><strong>Minimale Dependencies:</strong> Nur 4 Production-Pakete</li>
+  <li><strong>npm ci:</strong> Reproducible Builds — gleicher Code = gleiches Ergebnis</li>
+  <li><strong>Node.js 22:</strong> Aktuellste LTS-Version mit allen Security-Patches</li>
+</ul>
+
+<!-- SECTION 8 -->
+<h2 id="s8">8. HTTP Security Headers</h2>
+
+<p>Folgende Headers sind in <code>next.config.ts</code> konfiguriert:</p>
+
+<table>
+  <tr><th>Header</th><th>Wert</th><th>Schutz gegen</th><th>Status</th></tr>
+  <tr><td><code>X-Content-Type-Options</code></td><td><code>nosniff</code></td><td>MIME-Type-Sniffing</td><td><span class="badge badge-orange">Vercel-Only</span></td></tr>
+  <tr><td><code>X-Frame-Options</code></td><td><code>DENY</code></td><td>Clickjacking</td><td><span class="badge badge-orange">Vercel-Only</span></td></tr>
+  <tr><td><code>X-XSS-Protection</code></td><td><code>1; mode=block</code></td><td>Reflected XSS (Legacy)</td><td><span class="badge badge-orange">Vercel-Only</span></td></tr>
+  <tr><td><code>Referrer-Policy</code></td><td><code>strict-origin-when-cross-origin</code></td><td>Referrer-Leaking</td><td><span class="badge badge-orange">Vercel-Only</span></td></tr>
+  <tr><td><code>Permissions-Policy</code></td><td>camera=(), microphone=(), geolocation=()</td><td>Unerlaubter Hardware-Zugriff</td><td><span class="badge badge-orange">Vercel-Only</span></td></tr>
+  <tr><td><code>X-Powered-By</code></td><td>(entfernt)</td><td>Server-Fingerprinting</td><td><span class="badge badge-green">AKTIV</span></td></tr>
+</table>
+
+<div class="info-box warning">
+  <div class="info-box-title">⚠️ GitHub Pages Limitierung</div>
+  <p style="margin:0;">GitHub Pages erlaubt <strong>keine benutzerdefinierten HTTP-Headers</strong>. Die konfigurierten Security Headers werden erst bei einer Vercel-Migration aktiv. Dies ist eine akzeptierte Limitierung der aktuellen Hosting-Umgebung.</p>
+</div>
+
+<!-- SECTION 9 -->
+<h2 id="s9">9. Datenschutz & DSGVO</h2>
+
+<table>
+  <tr><th>Prüfpunkt</th><th>Status</th><th>Details</th></tr>
+  <tr><td>Cookies</td><td><span class="badge badge-green">KEINE</span></td><td>Keine Cookies gesetzt → kein Cookie-Banner nötig</td></tr>
+  <tr><td>Externe Verbindungen (Laufzeit)</td><td><span class="badge badge-green">MINIMAL</span></td><td>OpenStreetMap-Tiles (Karte), keine Tracker, kein Analytics</td></tr>
+  <tr><td>Externe Fonts</td><td><span class="badge badge-green">ELIMINIERT</span></td><td>Google Fonts durch <code>next/font</code> ersetzt (self-hosted)</td></tr>
+  <tr><td>Personenbezogene Daten</td><td><span class="badge badge-orange">VORHANDEN</span></td><td>Strava-Daten (Name, Stadt, Trainingsstatistiken) in öffentlicher JSON</td></tr>
+  <tr><td>Tracking / Analytics</td><td><span class="badge badge-green">KEINE</span></td><td>Kein Google Analytics, kein Meta Pixel, keine Tracker</td></tr>
+  <tr><td>Server-Logs</td><td><span class="badge badge-green">NICHT ZUGREIFBAR</span></td><td>GitHub Pages Logs sind nicht einsehbar</td></tr>
+</table>
+
+<div class="info-box">
+  <div class="info-box-title">💡 Hinweis zu Strava-Daten</div>
+  <p style="margin:0;">Die <code>strava-data.json</code> enthält den Namen, den Wohnort und Trainingsdetails des Athleten. Diese Datei ist technisch über die URL direkt abrufbar. <strong>Dies ist ein bewusstes Design-Entscheidung</strong>, da die Strava-Profildaten auch auf strava.com öffentlich sichtbar sind (Public Profile). Empfehlung für die Zukunft: Bei Vercel-Migration können die Daten hinter einer Server-API geschützt werden.</p>
+</div>
+
+<!-- SECTION 10 -->
+<div class="page-break"></div>
+<h2 id="s10">10. Risikomatrix</h2>
+
+<p>Bewertung nach Eintrittswahrscheinlichkeit × Auswirkung:</p>
+
+<div class="risk-matrix">
+  <div class="risk-header"></div>
+  <div class="risk-header">Sehr gering</div>
+  <div class="risk-header">Gering</div>
+  <div class="risk-header">Mittel</div>
+  <div class="risk-header">Hoch</div>
+  <div class="risk-header">Kritisch</div>
+
+  <div class="risk-label">Sehr wahrscheinlich</div>
+  <div class="risk-med"></div><div class="risk-high"></div><div class="risk-crit"></div><div class="risk-crit"></div><div class="risk-crit"></div>
+
+  <div class="risk-label">Wahrscheinlich</div>
+  <div class="risk-low"></div><div class="risk-med"></div><div class="risk-high"></div><div class="risk-crit"></div><div class="risk-crit"></div>
+
+  <div class="risk-label">Möglich</div>
+  <div class="risk-low"></div><div class="risk-med"></div><div class="risk-med"></div><div class="risk-high"></div><div class="risk-crit"></div>
+
+  <div class="risk-label">Unwahrscheinlich</div>
+  <div class="risk-low">①②</div><div class="risk-low">③</div><div class="risk-med">④</div><div class="risk-high"></div><div class="risk-high"></div>
+
+  <div class="risk-label">Sehr unwahrscheinlich</div>
+  <div class="risk-low"></div><div class="risk-low"></div><div class="risk-low">⑤</div><div class="risk-med"></div><div class="risk-high"></div>
+</div>
+
+<table>
+  <tr><th>#</th><th>Risiko</th><th>Einstufung</th><th>Maßnahme</th></tr>
+  <tr><td>①</td><td>Client-Auth umgangen</td><td><span class="badge badge-green">NIEDRIG</span></td><td>Akzeptiert; keine kritischen Daten dahinter</td></tr>
+  <tr><td>②</td><td>Brute-Force auf Passwort-Hash</td><td><span class="badge badge-green">NIEDRIG</span></td><td>SHA-256 Hash liegt ohnehin im Bundle; kein Mehrwert für Angreifer</td></tr>
+  <tr><td>③</td><td>JSON-Datei direkt abrufbar</td><td><span class="badge badge-green">NIEDRIG</span></td><td>Daten sind auf Strava ohnehin öffentlich</td></tr>
+  <tr><td>④</td><td>Strava-Token Kompromittierung</td><td><span class="badge badge-orange">MITTEL</span></td><td>In GitHub Secrets geschützt; Scope read-only</td></tr>
+  <tr><td>⑤</td><td>Supply-Chain-Angriff via npm</td><td><span class="badge badge-green">NIEDRIG</span></td><td>Lock-File, minimale Dependencies, regelmäßiges Audit</td></tr>
+</table>
+
+<!-- SECTION 11 -->
+<h2 id="s11">11. Empfehlungen & Roadmap</h2>
+
+<h3>Kurzfristig (bei Vercel-Migration)</h3>
+<table>
+  <tr><th>Maßnahme</th><th>Priorität</th><th>Aufwand</th></tr>
+  <tr><td>Server-seitige Authentifizierung (NextAuth.js)</td><td><span class="badge badge-red">HOCH</span></td><td>~4h</td></tr>
+  <tr><td>Security Headers aktivieren</td><td><span class="badge badge-red">HOCH</span></td><td>Automatisch bei Vercel</td></tr>
+  <tr><td>Rate-Limiting auf API-Routen</td><td><span class="badge badge-orange">MITTEL</span></td><td>~2h</td></tr>
+  <tr><td>Strava-Daten hinter Server-API schützen</td><td><span class="badge badge-orange">MITTEL</span></td><td>~2h</td></tr>
+  <tr><td>Content-Security-Policy (CSP) Header</td><td><span class="badge badge-orange">MITTEL</span></td><td>~1h</td></tr>
+</table>
+
+<h3>Mittelfristig</h3>
+<table>
+  <tr><th>Maßnahme</th><th>Priorität</th><th>Aufwand</th></tr>
+  <tr><td>Dependabot aktivieren (automatische Security-Updates)</td><td><span class="badge badge-orange">MITTEL</span></td><td>5 min</td></tr>
+  <tr><td>Subresource Integrity (SRI) für externe Scripts</td><td><span class="badge badge-blue">NIEDRIG</span></td><td>~1h</td></tr>
+  <tr><td>Penetration-Test beauftragen</td><td><span class="badge badge-blue">NIEDRIG</span></td><td>Extern</td></tr>
+  <tr><td>Security.txt + Responsible Disclosure Policy</td><td><span class="badge badge-blue">NIEDRIG</span></td><td>30 min</td></tr>
+</table>
+
+<div class="doc-footer">
+  <p>Sicherheitsdokumentation — NordCup Radsport-Dashboard v2.0 · Februar 2026</p>
+  <p>Basierend auf OWASP Top 10 (2025) · Klassifizierung: Vertraulich — Intern</p>
+</div>
+
+</body>
+</html>

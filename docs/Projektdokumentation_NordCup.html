@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projektdokumentation — NordCup Radsport-Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  
+  :root {
+    --blue: #2563eb;
+    --blue-light: #dbeafe;
+    --blue-dark: #1e40af;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+    --green: #16a34a;
+    --orange: #ea580c;
+    --red: #dc2626;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @page {
+    size: A4;
+    margin: 20mm 18mm 25mm 18mm;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.7;
+    color: var(--gray-800);
+    background: #fff;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 40px 50px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media print {
+    body { padding: 0; max-width: none; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    h2 { page-break-after: avoid; }
+    table, figure, .info-box { page-break-inside: avoid; }
+  }
+
+  /* Cover Page */
+  .cover {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 0;
+  }
+  .cover-icon {
+    font-size: 72px;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: 32pt;
+    font-weight: 900;
+    color: var(--gray-900);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+  .cover .subtitle {
+    font-size: 14pt;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 40px;
+  }
+  .cover-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 10pt;
+    color: var(--gray-500);
+  }
+  .cover-meta strong { color: var(--gray-700); }
+  .cover-line {
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--blue), var(--blue-dark));
+    border-radius: 2px;
+    margin: 30px auto;
+  }
+
+  /* Headings */
+  h1 { font-size: 22pt; font-weight: 900; color: var(--gray-900); margin: 48px 0 16px; letter-spacing: -0.01em; }
+  h2 { font-size: 16pt; font-weight: 800; color: var(--blue-dark); margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--blue-light); }
+  h3 { font-size: 12pt; font-weight: 700; color: var(--gray-800); margin: 24px 0 10px; }
+  h4 { font-size: 10.5pt; font-weight: 700; color: var(--gray-700); margin: 18px 0 8px; }
+
+  p { margin: 0 0 12px; }
+  
+  /* Lists */
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--blue); }
+
+  /* Info boxes */
+  .info-box {
+    background: var(--gray-50);
+    border-left: 4px solid var(--blue);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 10pt;
+  }
+  .info-box.warning {
+    background: #fff7ed;
+    border-left-color: var(--orange);
+  }
+  .info-box.success {
+    background: #f0fdf4;
+    border-left-color: var(--green);
+  }
+  .info-box-title {
+    font-weight: 700;
+    font-size: 10pt;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 9.5pt;
+  }
+  th {
+    background: var(--gray-100);
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--gray-300);
+    color: var(--gray-700);
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--gray-50); }
+
+  /* Code */
+  code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 9pt;
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--blue-dark);
+  }
+  pre {
+    background: var(--gray-900);
+    color: #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.6;
+    margin: 16px 0 20px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* Diagram boxes */
+  .diagram {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+    text-align: center;
+    font-size: 10pt;
+  }
+  .diagram .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+  .diagram .box {
+    background: white;
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 9.5pt;
+    color: var(--blue-dark);
+  }
+  .diagram .box.highlight {
+    background: var(--blue);
+    color: white;
+  }
+  .diagram .arrow {
+    font-size: 16pt;
+    color: var(--gray-400);
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    font-size: 8pt;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-orange { background: #ffedd5; color: #c2410c; }
+
+  /* TOC */
+  .toc { margin: 24px 0 40px; }
+  .toc a {
+    display: flex;
+    justify-content: space-between;
+    text-decoration: none;
+    color: var(--gray-700);
+    padding: 7px 0;
+    border-bottom: 1px dotted var(--gray-300);
+    font-size: 10.5pt;
+  }
+  .toc a:hover { color: var(--blue); }
+  .toc .section-num { color: var(--blue); font-weight: 700; margin-right: 10px; }
+
+  /* Footer */
+  .doc-footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 8.5pt;
+    color: var(--gray-400);
+    text-align: center;
+  }
+
+  /* Print button */
+  .print-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.35);
+    font-family: inherit;
+    z-index: 100;
+  }
+  .print-btn:hover { background: var(--blue-dark); }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ Als PDF drucken</button>
+
+<!-- ==================== COVER ==================== -->
+<div class="cover">
+  <div class="cover-icon">🚴</div>
+  <h1 style="margin:0; border:none; padding:0;">Projektdokumentation</h1>
+  <div class="subtitle">NordCup — Persönliches Radsport-Dashboard</div>
+  <div class="cover-line"></div>
+  <div class="cover-meta">
+    <div><strong>Projekt-URL:</strong> https://malletma.github.io/nordcup-map/</div>
+    <div><strong>Repository:</strong> github.com/malletma/nordcup-map</div>
+    <div><strong>Erstellt:</strong> Februar 2026</div>
+    <div><strong>Version:</strong> 2.0 — Production-Ready</div>
+    <div><strong>Autor:</strong> Maik Malletschek (mit KI-Unterstützung)</div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ==================== TOC ==================== -->
+<h2 style="margin-top:0;">Inhaltsverzeichnis</h2>
+<div class="toc">
+  <a href="#s1"><span><span class="section-num">1</span>Einleitung & Projektziel</span></a>
+  <a href="#s2"><span><span class="section-num">2</span>Technologie-Entscheidungen (für Einsteiger erklärt)</span></a>
+  <a href="#s3"><span><span class="section-num">3</span>Architektur-Überblick</span></a>
+  <a href="#s4"><span><span class="section-num">4</span>Projektstruktur (Dateien & Ordner)</span></a>
+  <a href="#s5"><span><span class="section-num">5</span>Strava-Anbindung (API-Integration)</span></a>
+  <a href="#s6"><span><span class="section-num">6</span>Authentifizierung (Login-System)</span></a>
+  <a href="#s7"><span><span class="section-num">7</span>Die vier Dashboard-Bereiche</span></a>
+  <a href="#s8"><span><span class="section-num">8</span>Infrastruktur & Deployment</span></a>
+  <a href="#s9"><span><span class="section-num">9</span>Automatisierung (GitHub Actions)</span></a>
+  <a href="#s10"><span><span class="section-num">10</span>Vercel-Bereitschaft</span></a>
+  <a href="#s11"><span><span class="section-num">11</span>Zusammenfassung & Ausblick</span></a>
+  <a href="#s12"><span><span class="section-num">12</span>Glossar</span></a>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ==================== SECTION 1 ==================== -->
+<h2 id="s1">1. Einleitung & Projektziel</h2>
+
+<p>Das <strong>NordCup Radsport-Dashboard</strong> ist eine persönliche Webseite für den Rad-Athleten Maik Malletschek. Sie verbindet echte Trainingsdaten aus der Fitness-App <strong>Strava</strong> mit einer modernen, visuellen Darstellung — vergleichbar mit einem „Forza Motorsport"-Cockpit für Radsportler.</p>
+
+<h3>Was kann die Seite?</h3>
+<ul>
+  <li><strong>Karte:</strong> Alle NordCup-Event-Standorte auf einer interaktiven Weltkarte</li>
+  <li><strong>Dashboard:</strong> Persönliche Statistiken — Kilometer, Höhenmeter, Streaks, Rekorde — alles live aus Strava</li>
+  <li><strong>Training:</strong> Wochenverläufe, Monatsvergleiche, Sportarten-Verteilung, Herzfrequenz-Zonen</li>
+  <li><strong>Garage:</strong> Alle Fahrräder im „Forza-Stil" mit Fotos, technischen Daten, Kilometerständen</li>
+  <li><strong>Rennen:</strong> Kommende Wettkämpfe mit Live-Countdown-Timern und Streckendetails</li>
+</ul>
+
+<div class="info-box">
+  <div class="info-box-title">💡 Für wen ist diese Doku?</div>
+  <p style="margin:0;">Diese Dokumentation richtet sich an <strong>technische Laien</strong>. Alle Fachbegriffe werden im Glossar (Kapitel 12) erklärt. Ziel: Sie sollen die gesamte Lösung verstehen und Dritten erklären können.</p>
+</div>
+
+<!-- ==================== SECTION 2 ==================== -->
+<h2 id="s2">2. Technologie-Entscheidungen (für Einsteiger erklärt)</h2>
+
+<p>Stellen Sie sich eine Webseite wie ein Haus vor: Man braucht ein Fundament, Baumaterialien und Werkzeuge. Hier ist die Analogie:</p>
+
+<table>
+  <tr>
+    <th>Technologie</th>
+    <th>Was ist das?</th>
+    <th>Analogie</th>
+    <th>Warum gewählt?</th>
+  </tr>
+  <tr>
+    <td><strong>Next.js 15</strong></td>
+    <td>Das „Baugerüst" der Webseite (Framework)</td>
+    <td>Das Fundament + Bauplan des Hauses</td>
+    <td>Standard der Industrie, von Vercel entwickelt, extrem schnell, SEO-optimiert</td>
+  </tr>
+  <tr>
+    <td><strong>React 19</strong></td>
+    <td>Bibliothek für Benutzeroberflächen</td>
+    <td>Die Inneneinrichtung — Fenster, Türen, Schalter</td>
+    <td>Meistgenutzte UI-Bibliothek weltweit (Meta/Facebook)</td>
+  </tr>
+  <tr>
+    <td><strong>TypeScript</strong></td>
+    <td>Programmiersprache (JavaScript mit Typen-Sicherheit)</td>
+    <td>Bauvorschriften, die Fehler verhindern</td>
+    <td>Verhindert Fehler, bevor sie passieren → weniger Bugs</td>
+  </tr>
+  <tr>
+    <td><strong>Strava API</strong></td>
+    <td>Schnittstelle zu Strava-Daten</td>
+    <td>Die Wasserleitung ins Haus</td>
+    <td>Offizielle Datenquelle für Trainingsaktivitäten</td>
+  </tr>
+  <tr>
+    <td><strong>GitHub</strong></td>
+    <td>Code-Speicher & Versionskontrolle</td>
+    <td>Das Grundbuch — jede Änderung dokumentiert</td>
+    <td>Standard, kostenlos, inkl. Automatisierung</td>
+  </tr>
+  <tr>
+    <td><strong>GitHub Pages</strong></td>
+    <td>Kostenloses Webhosting</td>
+    <td>Das Grundstück, auf dem das Haus steht</td>
+    <td>Kostenlos, SSL, direkt an GitHub angebunden</td>
+  </tr>
+  <tr>
+    <td><strong>Leaflet</strong></td>
+    <td>Karten-Bibliothek</td>
+    <td>Google Maps zum Selbstbauen</td>
+    <td>Open-Source, leichtgewichtig, kostenlos</td>
+  </tr>
+</table>
+
+<div class="info-box success">
+  <div class="info-box-title">✅ Warum diese Kombination?</div>
+  <p style="margin:0;">Next.js + React + TypeScript ist der <strong>Industriestandard 2026</strong> für moderne Webanwendungen. Netflix, TikTok, Notion und tausende weitere Unternehmen nutzen exakt diesen Stack. Die Seite ist damit zukunftssicher und wartbar.</p>
+</div>
+
+<!-- ==================== SECTION 3 ==================== -->
+<div class="page-break"></div>
+<h2 id="s3">3. Architektur-Überblick</h2>
+
+<p>Die Architektur beschreibt, <em>wie die einzelnen Teile zusammenarbeiten</em>. Hier der Datenfluss:</p>
+
+<div class="diagram">
+  <strong>Datenfluss: Von Strava zum Browser</strong>
+  <div class="flow" style="margin-top:16px;">
+    <div class="box">🏋️ Radfahren<br><small>Aktivität aufzeichnen</small></div>
+    <div class="arrow">→</div>
+    <div class="box">📱 Strava App<br><small>Daten speichern</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">⚡ Strava API<br><small>Daten abrufen</small></div>
+    <div class="arrow">→</div>
+    <div class="box">🤖 GitHub Actions<br><small>Stündlich abrufen</small></div>
+    <div class="arrow">→</div>
+    <div class="box">📄 JSON-Datei<br><small>Daten speichern</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">🌐 Webseite<br><small>Anzeigen</small></div>
+  </div>
+</div>
+
+<h3>Warum dieser Umweg?</h3>
+<p>Die Strava-API erlaubt nur <strong>100 Anfragen pro 15 Minuten</strong> und <strong>1.000 pro Tag</strong>. Wenn jeder Besucher direkt zu Strava gehen würde, wäre das Limit sofort erreicht. Daher:</p>
+<ol>
+  <li>Ein <strong>automatischer Job</strong> (GitHub Actions) ruft stündlich alle Daten ab</li>
+  <li>Die Daten werden als <strong>JSON-Datei</strong> (eine Art Datentabelle) gespeichert</li>
+  <li>Die Webseite lädt nur diese fertige Datei — <strong>schnell und ohne API-Limits</strong></li>
+</ol>
+
+<div class="diagram">
+  <strong>Statische Architektur (aktuell — GitHub Pages)</strong>
+  <div class="flow" style="margin-top:16px;">
+    <div class="box">Quellcode<br><small>auf GitHub</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">Build-Prozess<br><small>Next.js kompiliert</small></div>
+    <div class="arrow">→</div>
+    <div class="box">Statische HTML<br><small>/out/ Ordner</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">GitHub Pages<br><small>Webserver</small></div>
+    <div class="arrow">→</div>
+    <div class="box">🖥️ Browser<br><small>des Besuchers</small></div>
+  </div>
+  <p style="margin-top:12px;font-size:9pt;color:var(--gray-500);">Die Seite wird <strong>vorgebaut</strong> (pre-rendered) — der Browser bekommt fertiges HTML, kein Server nötig.</p>
+</div>
+
+<!-- ==================== SECTION 4 ==================== -->
+<div class="page-break"></div>
+<h2 id="s4">4. Projektstruktur (Dateien & Ordner)</h2>
+
+<p>So ist das Projekt auf der Festplatte aufgebaut:</p>
+
+<pre><code>nordcup-next/
+├── app/                        ← Alle Seiten der Webseite
+│   ├── layout.tsx              ← Grundgerüst (Schriftart, HTML-Head)
+│   ├── globals.css             ← Globale Farben & Stile
+│   ├── page.tsx                ← Startseite (Karte)
+│   ├── login/page.tsx          ← Login-Seite
+│   ├── mein-bereich/page.tsx   ← Das Dashboard (Hauptseite)
+│   ├── rennen/page.tsx         ← Weiterleitung → Dashboard #rennen
+│   ├── viking-bike-challenge/  ← Viking Bike Challenge Seite
+│   └── api/strava/dashboard/   ← API-Endpunkt (für Vercel)
+│       └── route.ts
+├── lib/                        ← Hilfsfunktionen
+│   ├── auth.ts                 ← Login-Logik (SHA-256)
+│   └── strava-server.ts        ← Strava-Daten holen (Server)
+├── public/                     ← Öffentliche Dateien
+│   ├── bikes/                  ← Fahrrad-Fotos (5 Stück)
+│   ├── strava-data.json        ← Vorberechnete Strava-Daten
+│   └── events.json             ← Event-Standorte für Karte
+├── scripts/
+│   └── fetch-strava.mjs        ← Skript: Strava-Daten abrufen
+├── .github/workflows/
+│   └── deploy.yml              ← Automatisierungs-Pipeline
+├── .env.local                  ← Geheime Schlüssel (lokal)
+├── next.config.ts              ← Next.js-Konfiguration
+├── tsconfig.json               ← TypeScript-Konfiguration
+└── package.json                ← Abhängigkeiten & Skripte</code></pre>
+
+<div class="info-box">
+  <div class="info-box-title">📂 Wichtig zu wissen</div>
+  <p style="margin:0;">Die Datei <code>app/mein-bereich/page.tsx</code> ist mit ~1.580 Zeilen die größte Datei. Sie enthält das gesamte Dashboard mit allen vier Tabs. In einer zukünftigen Version sollte sie in kleinere Komponenten aufgeteilt werden.</p>
+</div>
+
+<!-- ==================== SECTION 5 ==================== -->
+<div class="page-break"></div>
+<h2 id="s5">5. Strava-Anbindung (API-Integration)</h2>
+
+<h3>5.1 Was ist eine API?</h3>
+<p>Eine <strong>API</strong> (Application Programming Interface) ist eine Art „Bestellschalter": Unsere Webseite fragt bei Strava an „Gib mir alle Aktivitäten von Maik" und bekommt die Daten strukturiert zurückgeliefert.</p>
+
+<h3>5.2 Authentifizierung bei Strava (OAuth2)</h3>
+<p>Strava gibt nicht jedem Daten heraus. Man muss sich autorisieren. Das funktioniert über ein Protokoll namens <strong>OAuth2</strong>:</p>
+
+<div class="diagram">
+  <strong>OAuth2-Flow (einmalige Einrichtung)</strong>
+  <div class="flow" style="margin-top:16px;">
+    <div class="box">1. App registrieren<br><small>bei Strava Developers</small></div>
+    <div class="arrow">→</div>
+    <div class="box">2. Benutzer autorisiert<br><small>„Ja, darf auf meine Daten zugreifen"</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">3. Refresh-Token erhalten<br><small>Dauerhafter Schlüssel</small></div>
+  </div>
+  <div class="flow" style="margin-top:12px;">
+    <div class="box">4. Access-Token holen<br><small>mit Refresh-Token</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">5. Daten abrufen<br><small>GET /api/v3/athlete/activities</small></div>
+    <div class="arrow">→</div>
+    <div class="box">6. JSON-Daten<br><small>Aktivitäten, Statistiken, Bikes</small></div>
+  </div>
+</div>
+
+<h3>5.3 Welche Daten werden abgerufen?</h3>
+<table>
+  <tr><th>Datentyp</th><th>API-Endpunkt</th><th>Beispiel</th></tr>
+  <tr><td>Athleten-Profil</td><td><code>/api/v3/athlete</code></td><td>Name, Stadt, Mitglied seit</td></tr>
+  <tr><td>Jahres-Statistiken</td><td><code>/api/v3/athletes/{id}/stats</code></td><td>Gesamt-km, Höhenmeter, Aktivitäten</td></tr>
+  <tr><td>Aktivitäten (max. 200)</td><td><code>/api/v3/athlete/activities</code></td><td>Einzelne Fahrten mit km, Tempo, Herzfrequenz</td></tr>
+  <tr><td>Fahrräder</td><td>Im Athleten-Profil enthalten</td><td>Name, Marke, Kilometer pro Rad</td></tr>
+</table>
+
+<h3>5.4 Strava-Credentials</h3>
+<table>
+  <tr><th>Schlüssel</th><th>Wo gespeichert?</th><th>Zweck</th></tr>
+  <tr><td><code>STRAVA_CLIENT_ID</code></td><td>GitHub Secret</td><td>Identifiziert unsere App bei Strava</td></tr>
+  <tr><td><code>STRAVA_CLIENT_SECRET</code></td><td>GitHub Secret</td><td>Geheimer App-Schlüssel</td></tr>
+  <tr><td><code>STRAVA_REFRESH_TOKEN</code></td><td>GitHub Secret</td><td>Erlaubt dauerhaften Datenabruf</td></tr>
+</table>
+
+<div class="info-box warning">
+  <div class="info-box-title">⚠️ Strava API-Limits</div>
+  <p style="margin:0;">Strava erlaubt <strong>100 Anfragen pro 15 Minuten</strong> und <strong>1.000 pro Tag</strong>. Unser stündlicher Abruf verbraucht ~3 Anfragen pro Stunde = ~72 pro Tag. Das liegt weit unter dem Limit.</p>
+</div>
+
+<!-- ==================== SECTION 6 ==================== -->
+<h2 id="s6">6. Authentifizierung (Login-System)</h2>
+
+<h3>6.1 Wie funktioniert der Login?</h3>
+<p>Der private Bereich (<code>/mein-bereich</code>) ist passwortgeschützt. So funktioniert der Ablauf:</p>
+
+<ol>
+  <li>Besucher öffnet <code>/login</code> und gibt das Passwort ein</li>
+  <li>Das Passwort wird im Browser per <strong>SHA-256</strong> gehasht (verschlüsselt)</li>
+  <li>Der Hash wird mit dem gespeicherten Hash verglichen</li>
+  <li>Bei Übereinstimmung → Zugang gewährt, Token im <code>sessionStorage</code></li>
+  <li>Tab schließen = automatisch ausgeloggt</li>
+</ol>
+
+<h3>6.2 Was ist SHA-256?</h3>
+<p>SHA-256 ist ein <strong>Einweg-Algorithmus</strong>: Er berechnet aus einem Passwort einen festen „Fingerabdruck" (Hash). Aus dem Hash kann man das Passwort <strong>nicht zurückrechnen</strong>. Beispiel:</p>
+
+<pre><code>Passwort:  radfahren2026
+SHA-256:   3e138a3690f57fbed73cf277da807a9058ba6a37711c3f2c0ba084dfe400e941</code></pre>
+
+<p>Im Quellcode der Webseite steht nur der Hash — <strong>niemals das Klartext-Passwort</strong>.</p>
+
+<h3>6.3 Warum sessionStorage?</h3>
+<table>
+  <tr><th>Speicher-Art</th><th>Lebensdauer</th><th>Gewählt?</th></tr>
+  <tr><td><code>localStorage</code></td><td>Für immer (bis manuell gelöscht)</td><td>❌ Zu lange</td></tr>
+  <tr><td><code>sessionStorage</code></td><td>Nur bis Tab geschlossen wird</td><td>✅ Sicher</td></tr>
+  <tr><td>Cookie</td><td>Konfigurierbar</td><td>❌ Unnötig komplex für statische Seite</td></tr>
+</table>
+
+<!-- ==================== SECTION 7 ==================== -->
+<div class="page-break"></div>
+<h2 id="s7">7. Die vier Dashboard-Bereiche</h2>
+
+<h3>7.1 📊 Dashboard (Statistiken)</h3>
+<ul>
+  <li><strong>Jahresfortschritt</strong> — Ring-Diagramm: Wie viel % des 8.000-km-Ziels erreicht?</li>
+  <li><strong>Streak-Anzeige</strong> — Wie viele Tage in Folge trainiert?</li>
+  <li><strong>Rekorde</strong> — Längste Fahrt, meiste Höhenmeter, schnellste Fahrt</li>
+  <li><strong>Heatmap</strong> — 365-Tage-Kalender (wie GitHub-Contribution-Graph)</li>
+  <li><strong>Fun-Facts</strong> — „Du bist X-mal um die Erde gefahren" etc.</li>
+  <li><strong>Letzte Aktivitäten</strong> — Detailliste mit km, Zeit, Tempo, Wattzahlen</li>
+</ul>
+
+<h3>7.2 🏋️ Training</h3>
+<ul>
+  <li><strong>Wochenbelastung</strong> — 12-Wochen-Balkendiagramm</li>
+  <li><strong>Monatsvergleich</strong> — Balken pro Monat</li>
+  <li><strong>Trainingsform-Trend</strong> — Rollender 4-Wochen-Durchschnitt (Graph)</li>
+  <li><strong>Sportarten-Verteilung</strong> — Road, Gravel, Virtual etc. mit Prozenten</li>
+  <li><strong>Geschwindigkeits-Buckets</strong> — Wie oft fährst du 25-30 km/h vs. 30-35 km/h?</li>
+  <li><strong>Herzfrequenz-Zonen</strong> — Zone 1-5 Verteilung</li>
+  <li><strong>Tages-Radar</strong> — An welchem Wochentag fährst du am meisten?</li>
+</ul>
+
+<h3>7.3 🚲 Garage (Forza-Stil)</h3>
+<ul>
+  <li><strong>5 Fahrräder</strong> mit echten Fotos (800×533 px)</li>
+  <li><strong>Spotlight-Animation</strong> — Garage-Atmosphäre mit Beleuchtung</li>
+  <li><strong>Technische Daten</strong> — Rahmen, Schaltgruppe, Laufräder, Gewicht</li>
+  <li><strong>Kilometerstand</strong> — Pro Rad mit Wartungs-Status</li>
+  <li><strong>Verteilungsdiagramm</strong> — Welches Rad wird am meisten gefahren?</li>
+  <li><strong>Bearbeitungs-Modal</strong> — Daten können live angepasst werden</li>
+</ul>
+
+<h3>7.4 🏁 Rennen</h3>
+<ul>
+  <li><strong>3 Wettkämpfe 2026:</strong> Vätternrundan (315 km), L'Étape Denmark (300 km), MSR 300</li>
+  <li><strong>Live-Countdown</strong> — Tage:Stunden:Minuten:Sekunden bis zum Start</li>
+  <li><strong>Streckendetails</strong> — Distanz, Höhenmeter, Teilnehmerzahl</li>
+  <li><strong>Höhenprofil</strong> — Schematische SVG-Darstellung</li>
+  <li><strong>Karte</strong> — OpenStreetMap-Einbettung des Streckengebiets</li>
+  <li><strong>Saisonübersicht</strong> — Gesamt-Kilometer aller drei Rennen</li>
+</ul>
+
+<!-- ==================== SECTION 8 ==================== -->
+<div class="page-break"></div>
+<h2 id="s8">8. Infrastruktur & Deployment</h2>
+
+<h3>8.1 Wo liegt der Code?</h3>
+<table>
+  <tr><th>Was</th><th>Wo</th><th>URL</th></tr>
+  <tr><td>Quellcode</td><td>GitHub Repository</td><td><code>github.com/malletma/nordcup-map</code></td></tr>
+  <tr><td>Live-Seite</td><td>GitHub Pages</td><td><code>malletma.github.io/nordcup-map/</code></td></tr>
+  <tr><td>Geheime Schlüssel</td><td>GitHub Secrets</td><td>Repository → Settings → Secrets</td></tr>
+</table>
+
+<h3>8.2 Was ist „statischer Export"?</h3>
+<p>Next.js kann die gesamte Seite in <strong>reines HTML + CSS + JavaScript</strong> umwandeln (<code>output: 'export'</code>). Das Ergebnis:</p>
+<ul>
+  <li><strong>Kein Server nötig</strong> — die Dateien können auf jedem Webhost liegen</li>
+  <li><strong>Superschnell</strong> — alles vorberechnet, keine Wartezeit</li>
+  <li><strong>Sicher</strong> — keine Server-Angriffsfläche</li>
+  <li><strong>Kostenlos</strong> — GitHub Pages hostet unbegrenzt statische Seiten</li>
+</ul>
+
+<h3>8.3 Build-Prozess</h3>
+<pre><code># So wird die Seite gebaut:
+NEXT_STATIC_EXPORT=true \
+NEXT_PUBLIC_DATA_URL=/nordcup-map/strava-data.json \
+NEXT_PUBLIC_PASSWORD_HASH=3e138a... \
+npx next build
+
+# Ergebnis: /out/ Ordner mit allen fertigen Dateien</code></pre>
+
+<!-- ==================== SECTION 9 ==================== -->
+<h2 id="s9">9. Automatisierung (GitHub Actions)</h2>
+
+<p><strong>GitHub Actions</strong> ist ein kostenloses Automatisierungssystem. Unser Workflow macht Folgendes:</p>
+
+<div class="diagram">
+  <strong>Automatischer Deploy-Prozess (jede Stunde + bei Code-Änderungen)</strong>
+  <div class="flow" style="margin-top:16px;">
+    <div class="box">⏰ Trigger<br><small>Stündlich oder Push</small></div>
+    <div class="arrow">→</div>
+    <div class="box">📦 Code laden<br><small>checkout + npm ci</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">🔄 Strava abrufen<br><small>fetch-strava.mjs</small></div>
+    <div class="arrow">→</div>
+    <div class="box">🏗️ Build<br><small>next build</small></div>
+    <div class="arrow">→</div>
+    <div class="box highlight">🚀 Deploy<br><small>→ GitHub Pages</small></div>
+  </div>
+</div>
+
+<table>
+  <tr><th>Einstellung</th><th>Wert</th><th>Bedeutung</th></tr>
+  <tr><td>Zeitplan</td><td><code>0 * * * *</code></td><td>Jede volle Stunde</td></tr>
+  <tr><td>Node.js</td><td>Version 22</td><td>Aktuellste LTS-Version</td></tr>
+  <tr><td>Concurrency</td><td><code>pages-deploy</code></td><td>Verhindert parallele Deployments</td></tr>
+  <tr><td>Trigger</td><td>push + schedule + manual</td><td>Automatisch + manuell auslösbar</td></tr>
+</table>
+
+<!-- ==================== SECTION 10 ==================== -->
+<div class="page-break"></div>
+<h2 id="s10">10. Vercel-Bereitschaft</h2>
+
+<p>Die Seite ist so gebaut, dass sie <strong>ohne Code-Änderungen auf Vercel</strong> deployt werden kann. Vercel ist die Firma hinter Next.js und bietet serverseitiges Hosting.</p>
+
+<h3>Was ändert sich bei Vercel?</h3>
+<table>
+  <tr><th>Feature</th><th>GitHub Pages (aktuell)</th><th>Vercel (zukünftig)</th></tr>
+  <tr><td>Strava-Daten</td><td>Stündlich per JSON-Datei</td><td>On-Demand per API-Route (ISR)</td></tr>
+  <tr><td>Security Headers</td><td>Nicht aktiv</td><td>Aktiv (CSP, X-Frame-Options etc.)</td></tr>
+  <tr><td>Server-Funktionen</td><td>Nicht möglich</td><td>API-Routes und Middleware möglich</td></tr>
+  <tr><td>Kosten</td><td>Kostenlos</td><td>Kostenlos (Hobby-Plan)</td></tr>
+</table>
+
+<p>Die API-Route <code>/api/strava/dashboard</code> hat <code>revalidate: 3600</code> — das bedeutet, auf Vercel werden die Strava-Daten automatisch <strong>jede Stunde im Hintergrund</strong> aktualisiert, ohne Besucher warten zu lassen.</p>
+
+<!-- ==================== SECTION 11 ==================== -->
+<h2 id="s11">11. Zusammenfassung & Ausblick</h2>
+
+<div class="info-box success">
+  <div class="info-box-title">✅ Was wurde erreicht</div>
+  <ul style="margin:0; padding-left:18px;">
+    <li>Vollständiges Radsport-Dashboard mit Live-Strava-Daten</li>
+    <li>SHA-256-geschützter Login (Passwort nie im Klartext)</li>
+    <li>Stündliche automatische Datenaktualisierung</li>
+    <li>Zweisprachig (Deutsch/Englisch) mit Dark/Light Mode</li>
+    <li>Production-Ready: TypeScript strict, ES2022, Security Headers</li>
+    <li>Vercel-Ready: Sofort deployfähig auf Vercel</li>
+    <li>0 Sicherheitslücken bei <code>npm audit</code></li>
+  </ul>
+</div>
+
+<h3>Empfohlene nächste Schritte</h3>
+<ol>
+  <li><strong>Vercel-Migration</strong> — Für serverseitige Funktionen und Security Headers</li>
+  <li><strong>NextAuth.js</strong> — Professionelles Auth-System (statt Client-Side Hash)</li>
+  <li><strong>Komponenten aufteilen</strong> — <code>mein-bereich/page.tsx</code> in kleinere Teile</li>
+  <li><strong>Custom Domain</strong> — z.B. <code>nordcup.de</code> statt GitHub-URL</li>
+  <li><strong>E2E-Tests</strong> — Automatisierte Browser-Tests mit Playwright</li>
+</ol>
+
+<!-- ==================== SECTION 12 ==================== -->
+<div class="page-break"></div>
+<h2 id="s12">12. Glossar</h2>
+
+<table>
+  <tr><th>Begriff</th><th>Erklärung</th></tr>
+  <tr><td><strong>API</strong></td><td>Application Programming Interface — eine Schnittstelle, über die Programme miteinander sprechen</td></tr>
+  <tr><td><strong>Build</strong></td><td>Der Prozess, bei dem Quellcode in fertige Webseiten-Dateien umgewandelt wird</td></tr>
+  <tr><td><strong>Deploy</strong></td><td>Das Hochladen/Veröffentlichen der fertigen Seite auf einen Webserver</td></tr>
+  <tr><td><strong>Framework</strong></td><td>Ein Baukasten mit vorgefertigten Funktionen für die Programmierung</td></tr>
+  <tr><td><strong>GitHub Actions</strong></td><td>Ein Automatisierungssystem, das Code bei Änderungen automatisch baut und deployt</td></tr>
+  <tr><td><strong>Hash / Hashing</strong></td><td>Ein kryptographischer Einweg-Algorithmus — wie ein Fingerabdruck, der nicht zurückverfolgt werden kann</td></tr>
+  <tr><td><strong>HTML</strong></td><td>HyperText Markup Language — die Sprache, in der Webseiten geschrieben sind</td></tr>
+  <tr><td><strong>ISR</strong></td><td>Incremental Static Regeneration — Webseiten, die sich im Hintergrund selbst aktualisieren</td></tr>
+  <tr><td><strong>JSON</strong></td><td>JavaScript Object Notation — ein Format zum Speichern/Übertragen von Daten</td></tr>
+  <tr><td><strong>OAuth2</strong></td><td>Ein Sicherheitsprotokoll, mit dem man einer App Zugriff auf seine Daten gibt, ohne das Passwort zu verraten</td></tr>
+  <tr><td><strong>Repository</strong></td><td>Ein Speicherort für Code mit kompletter Änderungshistorie</td></tr>
+  <tr><td><strong>SHA-256</strong></td><td>Secure Hash Algorithm mit 256 Bit — ein kryptographischer Fingerabdruck-Algorithmus</td></tr>
+  <tr><td><strong>Statischer Export</strong></td><td>Die Webseite wird einmal gebaut und als fertige Dateien ausgeliefert (kein Server nötig)</td></tr>
+  <tr><td><strong>Token</strong></td><td>Ein digitaler Schlüssel, der Zugang autorisiert</td></tr>
+  <tr><td><strong>TypeScript</strong></td><td>JavaScript mit Typsicherheit — verhindert viele häufige Programmierfehler</td></tr>
+</table>
+
+<div class="doc-footer">
+  <p>Projektdokumentation — NordCup Radsport-Dashboard v2.0 · Februar 2026</p>
+  <p>Erstellt mit Next.js 15, React 19, TypeScript · Gehostet auf GitHub Pages</p>
+</div>
+
+</body>
+</html>
