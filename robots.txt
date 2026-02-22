@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /login
+Disallow: /mein-bereich
+Disallow: /api/
+Disallow: /strava-data.json
+
+User-agent: *
+Allow: /
+Allow: /viking-bike-challenge
